@@ -1,0 +1,1094 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+body {font-family: Arial;}
+
+/* Style the tab */
+.tab {
+  overflow: hidden;
+  border: 1px solid #ccc;
+  background-color: #f1f1f1;
+}
+
+/* Style the buttons inside the tab */
+.tab button {
+  background-color: inherit;
+  float: left;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  padding: 14px 16px;
+  transition: 0.3s;
+  font-size: 17px;
+
+}
+
+/* Change background color of buttons on hover */
+.tab button:hover {
+  background-color: #ddd;
+}
+
+/* Create an active/current tablink class */
+.tab button.active {
+  background-color: #ccc;
+}
+
+/* Style the tab content */
+.tabcontent {
+  display: none;
+  padding: 6px 12px;
+  border: 1px solid #ccc;
+  border-top: none;
+}
+
+/* Style a grid container */
+.grid-container {
+  display: grid;
+  grid-template-columns: auto auto;
+  background-color: #ffffff;
+  padding: 10px;
+}
+
+.tymp-container {
+    display: grid;
+    grid-template-columns: auto auto auto;
+    background-color: #ffffff;
+    padding: 10px;
+}
+
+/* Make a container one column that goes into another 5 column for ARTs
+ to allow tabbing as data obtained -perhaps refactor tymp table if approp*/
+
+ .reflex-container {
+     display: grid;
+     grid-template-columns: auto auto auto auto auto;
+     background-color: #ffffff;
+     padding: 1px;
+ }
+
+ .column-container {
+     display: grid;
+     grid-template-columns: auto;
+     background-color: #ffffff;
+     padding: 1px;
+ }
+
+ .positional-container {
+     display: grid;
+     grid-template-columns: auto auto auto auto;
+     background-color: #ffffff;
+     padding: 1px;
+ }
+
+.grid-item {
+  background-color: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  /*padding: 20px;*/                                                   
+  /*font-size: 30px;*/
+  text-align: left;
+}
+                                          
+/* setup grid for  vHIT */
+.item1 { grid-area: headerR; }
+.item2 { grid-area: headerL; }
+.item3 { grid-area: vor-r; }
+.item4 { grid-area: vor-l; }
+.item5 { grid-area: saccade-r; }
+.item6 { grid-area: saccade-l; }
+.item7 { grid-area: artifact-r; }
+.item8 { grid-area: artifact-l; }
+
+.vhit-container {
+    display: grid;
+    grid:
+    'headerR  headerL'
+    'vor-r vor-l'
+    'saccade-r saccade-l'
+    'artifact-r artifact-l';
+    background-color: #ffffff;
+    padding: 10px
+}
+
+
+.head-grid-item {
+  background-color: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  /*padding: 20px;*/                                                   
+  /*font-size: 30px;*/
+  text-align: left; 
+}
+
+.saccade-grid-item {
+  background-color: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  /*padding: 20px;*/                                                   
+  /*font-size: 30px;*/
+  text-align: left;
+}
+
+.vor-grid-item {
+  background-color: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  /*padding: 20px;*/                                                   
+  /*font-size: 30px;*/
+  text-align: left;
+}
+
+.vemp-container {
+    display: grid;
+    grid-template-columns: auto auto auto;
+    background-color: #ffffff;
+    padding: 10px
+}
+
+/* Style to set the size of checkbox */
+
+input.largerCheckbox {
+    width: 20px;
+    height: 20px;
+}
+form {
+  /* Center the form on the page */
+  margin: 0 auto;
+  width: 400px;
+  /* Form outline */
+  padding: 1em;
+  border: 1px solid #CCC;
+  border-radius: 1em;
+}
+                                  
+</style>
+</head>
+<body>
+<form 
+    method="POST" 
+    action="https://script.google.com/macros/s/AKfycbyEyKa3usHGYq5B4jQpAg1b16S-IBMqKkmdJKAqf6c/dev"
+    id="myForm"
+>
+<!-- <input name="Email" type="email" placeholder="Email" required>
+<input name="Name" type="text" placeholder="Name" required> -->
+<button type="submit">Send</button>
+<input type="button" onclick="formReset()" value="Reset form"><br><br>
+<label for="patientTags">Patient Tags:</label><br>
+<textarea id="patientTags" name="patientTags" value="" placeholder="Patient Tags" rows=3 cols = 45></textarea><br>
+
+<h2>Vestibular Results</h2>
+
+<!-- <input type="text" name="patient" readonly id="patLabel"> -->
+<label id="patLabel"> No Patient Loaded</label>
+
+<div class="tab">
+  <button class="tablinks" type="button" onclick="openTab(event, 'Patient')" id="defaultOpen">Patient</button>
+  <button class="tablinks" type="button" onclick="openTab(event, 'Prechecks')">Prechecks</button>
+  <button class="tablinks" type="button" onclick="openTab(event, 'vHIT')">vHIT</button>
+  <button class="tablinks" type="button" onclick="openTab(event, 'VEMPs')">VEMPs</button>
+  <button class="tablinks" type="button" onclick="openTab(event, 'VNG')">VNG</button>
+  
+</div>
+
+<div id="Patient" class="tabcontent">
+  
+  <p>Patient info, summary and sessions ans results summary.</p>
+  <div class="grid-container">
+    <div class="grid-item"> <label for="fname">First name:</label> </div>
+    <div class="grid-item"> <label for="lname">Last name:</label> </div>
+    <div class="grid-item"> <input type="text" id="fname" name="fname" value="" placeholder="First" required> </div>
+    <div class="grid-item"> <input type="text" id="lname" name="lname" value=""placeholder="Last" required> </div>
+    <div class="grid-item"> <label for="dob">Date of Birth:</label> </div>
+    <div class="grid-item"> <label for="sex">Sex:</label> </div>
+    <div class="grid-item"> <input type="date" id="dob" name="dob" value=""> </div>
+    <div class="grid-item"> <input type="radio" id="male" name="sex" checked = "checked" value = "male" > <label for "male" >Male</label> <input type="radio" id="female" name="sex" value = "female"> <label for "female" >Female</label></div>
+    
+  </div>
+</div>
+
+<div id="Prechecks" class="tabcontent">
+    <label for="eyeexam">Eye Exam:</label><br>
+    <textarea id="eyeexam" name="eyeexam" value="" placeholder="Enter comment on Eye Exam" rows=3 cols = 45></textarea><br>
+    <label for="otoscopy">Otoscopy:</label><br>
+    <textarea id="otoscopy" name="otoscopy" value="" placeholder="Enter comment on Otoscopy" rows=3 cols = 45></textarea><br>
+    <label for="audiometry">Audiometry:</label><br>
+    <textarea id="audiometry" name="audiometry" value="" placeholder="Enter comment on Audiometry" rows=3 cols = 45></textarea><br>
+    <label for="immittance">Tympanometry:</label><br>
+    <div class="tymp-container">
+        <div class="grid-item"> <label>RIGHT</label> </div>
+        <div class="grid-item"> <label></label> </div>
+        <div class="grid-item"> <label>LEFT</label> </div>
+        <div class="grid-item"> <input type="text" id="rTympType" name="rTympType" value="" placeholder="A/B/C" size=5> </div>
+        <div class="grid-item"> <label>Type</label> </div>
+        <div class="grid-item"> <input type="text" id="lTympType" name="lTympType" value="" placeholder="A/B/C" size=5> </div>
+        <div class="grid-item"> <input type="number" id="rTympMEP" name="rTympMEP" value="" placeholder="daPa" max=200 min=-400> </div>
+        <div class="grid-item"> <label>MEP</label> </div>
+        <div class="grid-item"> <input type="number" id="lTympMEP" name="lTympMEP" value="" placeholder="daPa" max=200 min=-400> </div>
+        <div class="grid-item"> <input type="number" id="rTympAdm" name="rTympAdm" value="" placeholder="mho" max=10.0 min=0> </div>
+        <div class="grid-item"> <label>Peak</label> </div>
+        <div class="grid-item"> <input type="number" id="lTympAdm" name="lTympAdm" value="" placeholder="mho" max=10.0 min=0> </div>
+        <div class="grid-item"> <input type="number" id="rTympVol" name="rTympVol" value="" placeholder="ml" max=10.0 min=0> </div>
+        <div class="grid-item"> <label>Vol.</label> </div>
+        <div class="grid-item"> <input type="number" id="lTympVol" name="lTympVol" value="" placeholder="ml" max=10.0 min=0> </div>
+    </div>
+    <label for="reflexes">Acoustic Reflexes:</label><br>
+    <div class="reflex-container">
+        <div class="grid-item">
+            <div class="column-container">
+                <div class="grid-item"> <label>RC</label> </div>
+                <div class="grid-item"> <input type="text" id="rARTc500" name="rARTc500" value="" size=4> </div>
+                <div class="grid-item"> <input type="text" id="rARTc1000" name="rARTc1000" value="" size=4> </div>
+                <div class="grid-item"> <input type="text" id="rARTc2000" name="rARTc2000" value="" size=4> </div>
+            </div>
+        </div>
+        <div class="grid-item">
+            <div class="column-container">
+                <div class="grid-item"> <label>RI</label> </div>
+                <div class="grid-item"> <input type="text" id="rARTi500" name="rARTi500" value="" size=4> </div>
+                <div class="grid-item"> <input type="text" id="rARTi1000" name="rARTi1000" value="" size=4> </div>
+                <div class="grid-item"> <input type="text" id="rARTi2000" name="rARTi2000" value="" size=4> </div>
+            </div>
+        </div>
+        <div class="grid-item">
+            <div class="column-container">
+                <div class="grid-item"> <label>FREQ</label> </div>
+                <div class="grid-item"> <label>.5kHz</label> </div>
+                <div class="grid-item"> <label>1kHz</label> </div>
+                <div class="grid-item"> <label>2kHz</label> </div>
+            </div>
+        </div>
+        <div class="grid-item">
+            <div class="column-container">
+                <div class="grid-item"> <label>LI</label> </div>
+                <div class="grid-item"> <input type="text" id="lARTi500" name="lARTi500" value="" size=4> </div>
+                <div class="grid-item"> <input type="text" id="lARTi1000" name="lARTi1000" value="" size=4> </div>
+                <div class="grid-item"> <input type="text" id="lARTi2000" name="lARTi2000" value="" size=4> </div>
+            </div>
+        </div>
+        <div class="grid-item">
+            <div class="column-container">
+                <div class="grid-item"> <label>LC</label> </div>
+                <div class="grid-item"> <input type="text" id="lARTc500" name="lARTc500" value="" size=4> </div>
+                <div class="grid-item"> <input type="text" id="lARTc1000" name="lARTc1000" value="" size=4> </div>
+                <div class="grid-item"> <input type="text" id="lARTc2000" name="lARTc2000" value="" size=4> </div>
+            </div>
+        </div>
+    </div>
+  <p>Indicate absent reflexes with the level tested followed by a + e.g. 110+.</p> 
+</div>
+
+<div id="vHIT" class="tabcontent">
+    <b>Lateral SCC</b>
+    <div class="vhit-container">
+        <div class="head-grid-item"><b>RIGHT</b></div>
+        <div class="head-grid-item"><b>LEFT</b></div>
+        <div class="vor-grid-item">
+            <label for="rLatVhit-state">VOR state:</label>
+            <select name="rLatVhit-state" id="rLatVhit-state">
+                <option value="Normal">Normal</option>
+                <option value="Reduced">Reduced</option>
+                <option value="Enhanced">Enhanced</option>
+                <option value="CNT">CNT</option>
+                <option value="DNT">DNT</option>
+                <option value="Abnormal">Abnormal</option>
+            </select><br>
+            <label for="rLatVhit-gain">VOR gain:</label>
+            <input type="number" id="rLatVhit-gain" name="rLatVhit-gain" value="" placeholder="0.0" max=2 min=0.0>
+        </div>
+        <div class="vor-grid-item">
+            <label for="lLatVhit-state">VOR state:</label>
+            <select name="lLatVhit-state" id="lLatVhit-state">
+                <option value="Normal">Normal</option>
+                <option value="Reduced">Reduced</option>
+                <option value="Enhanced">Enhanced</option>
+                <option value="CNT">CNT</option>
+                <option value="DNT">DNT</option>
+                <option value="Abnormal">Abnormal</option>
+            </select><br>
+            <label for="lLatVhit-gain">VOR gain:</label>
+            <input type="number" id="lLatVhit-gain" name="lLatVhit-gain" value="" placeholder="0.0" max=2 min=0.0> 
+        </div>
+        <div class="saccade-grid-item">
+            <fieldset>
+                <legend>
+                    <input type="checkbox" class="largerCheckbox" id="rLatVhit-saccades" name="rLatVhit-saccades">
+                    <label for="rLatVhit-saccades">Saccades present</label>
+                </legend>
+                <div>
+                    <label for="rLatVhit-saccadeSize">Size:</label>
+                    <select name="rLatVhit-saccadeSize" id="rLatVhit-saccadeSize">
+                        <option value="Large">Large</option>
+                        <option value="Small">Small</option>
+                        <option selected value=""></option>
+                    </select>
+                    <br>
+                    <label for="rLatVhit-saccadeLatency">Position:</label>
+                    <select name="rLatVhit-saccadeLatency" id="rLatVhit-saccadeLatency">
+                        <option value="Overt">Overt</option>
+                        <option value="Covert">Covert</option>
+                        <option selected value=""></option>
+                    </select>
+                    <br>
+                    <label for="rLatVhit-saccadeGrouping">Grouping:</label>
+                    <select name="rLatVhit-saccadeGrouping" id="rLatVhit-saccadeGrouping">
+                        <option  value="Scattered">Scattered</option>
+                        <option value="Gathered">Gathered</option>
+                        <option selected value=""></option>
+                    </select>
+                    <label for="rLatVhit-saccadePR">PR:</label> &nbsp 
+                    <input type="number" id="rLatVhit-saccadePR" name="rLatVhit-saccadePR" value="" placeholder="0.0" max=1.0 min=0.0 style="width: 2em">
+                </div>
+            </fieldset>
+        </div>
+        <div class="saccade-grid-item">
+            <fieldset>
+                <legend>
+                    <input type="checkbox" class="largerCheckbox" id="lLatVhit-saccades" name="lLatVhit-saccades">
+                    <label for="lLatVhit-saccades">Saccades present</label>
+                </legend>
+                <div>
+                    <label for="lLatVhit-saccadeSize">Size:</label>
+                    <select name="lLatVhit-saccadeSize" id="lLatVhit-saccadeSize">
+                        <option value="Large">Large</option>
+                        <option value="Small">Small</option>
+                        <option selected value=""></option>
+                    </select>
+                    <br>
+                    <label for="lLatVhit-saccadeLatency">Position:</label>
+                    <select name="lLatVhit-saccadeLatency" id="lLatVhit-saccadeLatency">
+                        <option value="Overt">Overt</option>
+                        <option value="Covert">Covert</option>
+                        <option selected value=""></option>
+                    </select>
+                    <br>
+                    <label for="lLatVhit-saccadeGrouping">Grouping:</label>
+                    <select name="lLatVhit-saccadeGrouping" id="lLatVhit-saccadeGrouping">
+                        <option value="Scattered">Scattered</option>
+                        <option value="Gathered">Gathered</option>
+                        <option selected value=""></option>
+                    </select>
+                    <label for="lLatVhit-saccadePR">PR:</label>
+                    <input type="number" id="lLatVhit-saccadePR" name="lLatVhit-saccadePR" value="" placeholder="0.0" max=1.0 min=0.0 style="width: 2em">
+                </div>
+            </fieldset>            
+        </div>
+        <div class="vor-grid-item">
+            <label for="rLatVhit-Comment">Comment:</label>
+            <input type="text" id="rLatVhit-Comment" name="rLatVhit-Comment" value="" placeholder="e.g. artifacts -slip, spont nystagmus" size=20>
+
+        </div>
+        <div class="vor-grid-item">
+            <label for="lLatVhit-Comment">Comment:</label>
+            <input type="text" id="lLatVhit-Comment" name="lLatVhit-Comment" value="" placeholder="e.g. artifacts -slip, spont nystagmus" size=20>
+        </div> 
+    </div>    <br>
+  <b>Anterior SCC</b>
+  <div class="vhit-container">
+    <div class="head-grid-item"><b>RIGHT</b></div>
+    <div class="head-grid-item"><b>LEFT</b></div>
+    <div class="vor-grid-item">
+        <label for="rAntVhit-state">VOR state:</label>
+        <select name="rAntVhit-state" id="rAntVhit-state">
+            <option value="Normal">Normal</option>
+            <option value="Reduced">Reduced</option>
+            <option value="Enhanced">Enhanced</option>
+            <option value="CNT">CNT</option>
+            <option value="DNT">DNT</option>
+            <option value="Abnormal">Abnormal</option>
+        </select><br>
+        <label for="rAntVhit-gain">VOR gain:</label>
+        <input type="number" id="rAntVhit-gain" name="rAntVhit-gain" value="" placeholder="0.0" max=2 min=0.0>
+    </div>
+    <div class="vor-grid-item">
+        <label for="lAntVhit-state">VOR state:</label>
+        <select name="lAntVhit-state" id="lAntVhit-state">
+            <option value="Normal">Normal</option>
+            <option value="Reduced">Reduced</option>
+            <option value="Enhanced">Enhanced</option>
+            <option value="CNT">CNT</option>
+            <option value="DNT">DNT</option>
+            <option value="Abnormal">Abnormal</option>
+        </select><br>
+        <label for="lAntVhit-gain">VOR gain:</label>
+        <input type="number" id="lAntVhit-gain" name="lAntVhit-gain" value="" placeholder="0.0" max=2 min=0.0> 
+    </div>
+    <div class="saccade-grid-item">
+        <fieldset>
+            <legend>
+                <input type="checkbox" class="largerCheckbox" id="rAntVhit-saccades" name="rAntVhit-saccades">
+                <label for="rAntVhit-saccades">Saccades present</label>
+            </legend>
+            <div>
+                <label for="rAntVhit-saccadeSize">Size:</label>
+                <select name="rAntVhit-saccadeSize" id="rAntVhit-saccadeSize">
+                    <option value="Large">Large</option>
+                    <option value="Small">Small</option>
+                    <option selected value=""></option>
+                </select>
+                <br>
+                <label for="rAntVhit-saccadeLatency">Position:</label>
+                <select name="rAntVhit-saccadeLatency" id="rAntVhit-saccadeLatency">
+                    <option value="Overt">Overt</option>
+                    <option value="Covert">Covert</option>
+                    <option selected value=""></option>
+                </select>
+                <br>
+                <label for="rAntVhit-saccadeGrouping">Grouping:</label>
+                <select name="rAntVhit-saccadeGrouping" id="rAntVhit-saccadeGrouping">
+                    <option value="Scattered">Scattered</option>
+                    <option value="Gathered">Gathered</option>
+                    <option selected value=""></option>
+                </select>
+                <label for="rAntVhit-saccadePR">PR:</label>
+                <input type="number" id="rAntVhit-saccadePR" name="rAntVhit-saccadePR" value="" placeholder="0.0" max=1.0 min=0.0 style="width: 2em">
+            </div>
+        </fieldset>
+    </div>
+    <div class="saccade-grid-item">
+        <fieldset>
+            <legend>
+                <input type="checkbox" class="largerCheckbox" id="lAntVhit-saccades" name="lAntVhit-saccades">
+                <label for="lAntVhit-saccades">Saccades present</label>
+            </legend>
+            <div>
+                <label for="lAntVhit-saccadeSize">Size:</label>
+                <select name="lAntVhit-saccadeSize" id="lAntVhit-saccadeSize">
+                    <option value="Large">Large</option>
+                    <option value="Small">Small</option>
+                    <option selected value=""></option>
+                </select>
+                <br>
+                <label for="lAntVhit-saccadeLatency">Position:</label>
+                <select name="lAntVhit-saccadeLatency" id="lAntVhit-saccadeLatency">
+                    <option value="Overt">Overt</option>
+                    <option value="Covert">Covert</option>
+                    <option selected value=""></option>
+                </select>
+                <br>
+                <label for="lAntVhit-saccadeGrouping">Grouping:</label>
+                <select name="lAntVhit-saccadeGrouping" id="lAntVhit-saccadeGrouping">
+                    <option value="Scattered">Scattered</option>
+                    <option value="Gathered">Gathered</option>
+                    <option selected value=""></option>
+                </select>
+                <label for="lAntVhit-saccadePR">PR:</label>
+                <input type="number" id="lAntVhit-saccadePR" name="lAntVhit-saccadePR" value="" placeholder="0.0" max=1.0 min=0.0 style="width: 2em">
+            </div>
+        </fieldset>            
+    </div>
+    <div class="vor-grid-item">
+        <label for="rAntVhit-Comment">Comment:</label>
+        <input type="text" id="rAntVhit-Comment" name="rAntVhit-Comment" value="" placeholder="e.g. artifacts -slip, spont nystagmus" size=20>
+
+    </div>
+    <div class="vor-grid-item">
+        <label for="lAntVhit-Comment">Comment:</label>
+        <input type="text" id="lAntVhit-Comment" name="lAntVhit-Comment" value="" placeholder="e.g. artifacts -slip, spont nystagmus" size=20>
+    </div>  
+  </div><br>
+  <b>Posterior SCC</b>
+  <div class="vhit-container">
+    <div class="head-grid-item"><b>RIGHT</b></div>
+    <div class="head-grid-item"><b>LEFT</b></div>
+    <div class="vor-grid-item">
+        <label for="rPostVhit-state">VOR state:</label>
+        <select name="rPostVhit-state" id="rPostVhit-state">
+            <option value="Normal">Normal</option>
+            <option value="Reduced">Reduced</option>
+            <option value="Enhanced">Enhanced</option>
+            <option value="CNT">CNT</option>
+            <option value="DNT">DNT</option>
+            <option value="Abnormal">Abnormal</option>
+        </select><br>
+        <label for="rPostVhit-gain">VOR gain:</label>
+        <input type="number" id="rPostVhit-gain" name="rPostVhit-gain" value="" placeholder="0.0" max=2 min=0.0>
+    </div>
+    <div class="vor-grid-item">
+        <label for="lPostVhit-state">VOR state:</label>
+        <select name="lPostVhit-state" id="lPostVhit-state">
+            <option value="Normal">Normal</option>
+            <option value="Reduced">Reduced</option>
+            <option value="Enhanced">Enhanced</option>
+            <option value="CNT">CNT</option>
+            <option value="DNT">DNT</option>
+            <option value="Abnormal">Abnormal</option>
+        </select><br>
+        <label for="lPostVhit-gain">VOR gain:</label>
+        <input type="number" id="lPostVhit-gain" name="lPostVhit-gain" value="" placeholder="0.0" max=2 min=0.0> 
+    </div>
+    <div class="saccade-grid-item">
+        <fieldset>
+            <legend>
+                <input type="checkbox" class="largerCheckbox" id="rPostVhit-saccades" name="rPostVhit-saccades">
+                <label for="rPostVhit-saccades">Saccades present</label>
+            </legend>
+            <div>
+                <label for="rPostVhit-saccadeSize">Size:</label>
+                <select name="rPostVhit-saccadeSize" id="rPostVhit-saccadeSize">
+                    <option value="Large">Large</option>
+                    <option value="Small">Small</option>
+                    <option selected value=""></option>
+                </select>
+                <br>
+                <label for="rPostVhit-saccadeLatency">Position:</label>
+                <select name="rPostVhit-saccadeLatency" id="rPostVhit-saccadeLatency">
+                    <option value="Overt">Overt</option>
+                    <option value="Covert">Covert</option>
+                    <option selected value=""></option>
+                </select>
+                <br>
+                <label for="rPostVhit-saccadeGrouping">Grouping:</label>
+                <select name="rPostVhit-saccadeGrouping" id="rPostVhit-saccadeGrouping">
+                    <option value="Scattered">Scattered</option>
+                    <option value="Gathered">Gathered</option>
+                    <option selected value=""></option>
+                </select>
+                <label for="rPostVhit-saccadePR">PR:</label>
+                <input type="number" id="rPostVhit-saccadePR" name="rPostVhit-saccadePR" value="" placeholder="0.0" max=1.0 min=0.0 style="width: 2em">
+            </div>
+        </fieldset>
+    </div>
+    <div class="saccade-grid-item">
+        <fieldset>
+            <legend>
+                <input type="checkbox" class="largerCheckbox" id="lPostVhit-saccades" name="lPostVhit-saccades">
+                <label for="lPostVhit-saccades">Saccades present</label>
+            </legend>
+            <div>
+                <label for="lPostVhit-saccadeSize">Size:</label>
+                <select name="lPostVhit-saccadeSize" id="lPostVhit-saccadeSize">
+                    <option value="Large">Large</option>
+                    <option value="Small">Small</option>
+                    <option selected value=""></option>
+                </select>
+                <br>
+                <label for="lPostVhit-saccadeLatency">Position:</label>
+                <select name="lPostVhit-saccadeLatency" id="lPostVhit-saccadeLatency" >
+                    <option value="Overt">Overt</option>
+                    <option value="Covert">Covert</option>
+                    <option selected value=""></option>
+                </select>
+                <br>
+                <label for="lPostVhit-saccadeGrouping">Grouping:</label>
+                <select name="lPostVhit-saccadeGrouping" id="lPostVhit-saccadeGrouping">
+                    <option value="Scattered">Scattered</option>
+                    <option value="Gathered">Gathered</option>
+                    <option selected value=""></option>
+                </select>
+                <label for="lPostVhit-saccadePR">PR:</label>
+                <input type="number" id="lPostVhit-saccadePR" name="lPostVhit-saccadePR" value="" placeholder="0.0" max=1.0 min=0.0 style="width: 2em">
+            </div>
+        </fieldset>            
+    </div>
+    <div class="vor-grid-item">
+        <label for="rPostVhit-Comment">Comment:</label>
+        <input type="text" id="rPostVhit-Comment" name="rPostVhit-Comment" value="" placeholder="e.g. artifacts -slip, spont nystagmus" size=20>
+    </div>
+    <div class="vor-grid-item">
+        <label for="lPostVhit-Comment">Comment:</label>
+        <input type="text" id="lPostVhit-Comment" name="lPostVhit-Comment" value="" placeholder="e.g. artifacts -slip, spont nystagmus" size=20>
+    </div>  
+</div>
+</div>
+
+
+<div id="VEMPs" class="tabcontent">
+    <fieldset>
+        <legend>
+            <label><b>ACcVEMP</b> Result:</label>
+            <select name="ACcVEMP-status" id="ACcVEMP-status">
+                <option selected value=""></option>
+                <option value="R=L">R=L</option>
+                <option value="R<L">R&lt;L</option>
+                <option value="R>L">R&gt;L</option>
+                <option value="NR bilat">NR bilat</option>
+                <option value="CNT">CNT</option>
+                <option value="DNT">DNT</option>    
+            </select>
+            <label for=ACcVEMP-NAR">NAR:</label>
+            <input type="number" id="ACcVEMP-NAR" name="ACcVEMP-NAR" value="" placeholder="%" max=100 min=-100 style="width: 3em">
+        </legend>
+        <div class="vemp-container">
+            <div class="head-grid-item">P1 Latency:</div>
+            <div class="grid-item">
+                <label for="ACcVEMP-rP1latency">Right:</label>
+                <input type="number" id="ACcVEMP-rP1latency" name="ACcVEMP-rP1latency" value="" placeholder="ms" max=80 min=0.0 style="width: 2em">
+            </div>
+            <div class="grid-item">
+                <label for="ACcVEMP-lP1latency">Left:</label>
+                <input type="number" id="ACcVEMP-lP1latency" name="ACcVEMP-lP1latency" value="" placeholder="ms" max=80 min=0.0 style="width: 2em">
+            </div>
+            <div class="head-grid-item">N1 Latency:</div>
+            <div class="grid-item">
+                <label for="ACcVEMP-rN1latency">Right:</label>
+                <input type="number" id="ACcVEMP-rN1latency" name="ACcVEMP-rN1latency" value="" placeholder="ms" max=80 min=0.0 style="width: 2em">
+            </div>
+            <div class="grid-item">
+                <label for="ACcVEMP-lN1latency">Left:</label>
+                <input type="number" id="ACcVEMP-lN1latency" name="ACcVEMP-lN1latency" value="" placeholder="ms" max=80 min=0.0 style="width: 2em">
+            </div>
+        </div>
+    </fieldset>
+
+    <fieldset>
+        <legend>
+            <label><b>BCcVEMP</b> Result:</label>
+            <select name="BCcVEMP-status" id="BCcVEMP-status">
+                <option selected value=""></option>
+                <option value="R=L">R=L</option>
+                <option value="R<L">R&lt;L</option>
+                <option value="R>L">R&gt;L</option>
+                <option value="NR bilat">NR bilat</option>
+                <option value="CNT">CNT</option>
+                <option value="DNT">DNT</option>    
+            </select>
+            <label for=BCcVEMP-NAR">NAR:</label>
+            <input type="number" id="BCcVEMP-NAR" name="BCcVEMP-NAR" value="" placeholder="%" max=100 min=-100 style="width: 3em">
+        </legend>
+        <div class="vemp-container">
+            <div class="head-grid-item">P1 Latency:</div>
+            <div class="grid-item">
+                <label for="BCcVEMP-rP1latency">Right:</label>
+                <input type="number" id="BCcVEMP-rP1latency" name="BCcVEMP-rP1latency" value="" placeholder="ms" max=80 min=0.0 style="width: 2em">
+            </div>
+            <div class="grid-item">
+                <label for="BCcVEMP-lP1latency">Left:</label>
+                <input type="number" id="BCcVEMP-lP1latency" name="BCcVEMP-lP1latency" value="" placeholder="ms" max=80 min=0.0 style="width: 2em">
+            </div>
+            <div class="head-grid-item">N1 Latency:</div>
+            <div class="grid-item">
+                <label for="BCcVEMP-rN1latency">Right:</label>
+                <input type="number" id="BCcVEMP-rN1latency" name="BCcVEMP-rN1latency" value="" placeholder="ms" max=80 min=0.0 style="width: 2em">
+            </div>
+            <div class="grid-item">
+                <label for="BCcVEMP-lN1latency">Left:</label>
+                <input type="number" id="BCcVEMP-lN1latency" name="BCcVEMP-lN1latency" value="" placeholder="ms" max=80 min=0.0 style="width: 2em">
+            </div>
+        </div>
+    </fieldset>
+    <label for="cVEMPcomment"><b>cVEMP Comment:</b></label><br>
+    <textarea id="cVEMPcomment" name="cVEMPcomment" value="" placeholder="Enter comment on cVEMP" rows=3 cols = 45></textarea><br><br>
+
+    <fieldset>
+        <legend>
+            <label><b>BCoVEMP</b> Result:</label>
+            <select name="BCoVEMP-status" id="BCoVEMP-status">
+                <option selected value=""></option>
+                <option value="R=L">R=L</option>
+                <option value="R<L">R&lt;L</option>
+                <option value="R>L">R&gt;L</option>
+                <option value="NR bilat">NR bilat</option>
+                <option value="CNT">CNT</option>
+                <option value="DNT">DNT</option>    
+            </select>
+            <label for=BCoVEMP-AR">AR:</label>
+            <input type="number" id="BCoVEMP-AR" name="BCoVEMP-AR" value="" placeholder="%" style="width: 3em">
+        </legend>
+        <div class="vemp-container">
+            <div class="head-grid-item">Amplitude:</div>
+            <div class="grid-item">
+                <label for="BCoVEMP-rAmplitude">Right:</label>
+                <input type="number" id="BCoVEMP-rAmplitude" name="BCoVEMP-rAmplitude" value="" placeholder="uV"  style="width: 3em">
+            </div>
+            <div class="grid-item">
+                <label for="BCoVEMP-lAmplitude">Left:</label>
+                <input type="number" id="BCoVEMP-lAmplitude" name="BCoVEMP-lAmplitude" value="" placeholder="uV"  style="width: 3em">
+            </div>
+            <div class="head-grid-item">P1 Latency:</div>
+            <div class="grid-item">
+                <label for="BCoVEMP-rP1latency">Right:</label>
+                <input type="number" id="BCoVEMP-rP1latency" name="BCoVEMP-rP1latency" value="" placeholder="ms" max=80 min=0.0 style="width: 2em">
+            </div>
+            <div class="grid-item">
+                <label for="BCoVEMP-lP1latency">Left:</label>
+                <input type="number" id="BCoVEMP-lP1latency" name="BCoVEMP-lP1latency" value="" placeholder="ms" max=80 min=0.0 style="width: 2em">
+            </div>
+            <div class="head-grid-item">N1 Latency:</div>
+            <div class="grid-item">
+                <label for="BCoVEMP-rN1latency">Right:</label>
+                <input type="number" id="BCoVEMP-rN1latency" name="BCoVEMP-rN1latency" value="" placeholder="ms" max=80 min=0.0 style="width: 2em">
+            </div>
+            <div class="grid-item">
+                <label for="BCoVEMP-lN1latency">Left:</label>
+                <input type="number" id="BCoVEMP-lN1latency" name="BCoVEMP-lN1latency" value="" placeholder="ms" max=80 min=0.0 style="width: 2em">
+            </div>
+        </div>
+    </fieldset>
+
+    <fieldset>
+        <legend>
+            <label><b>ACoVEMP</b> Result:</label>
+            <select name="ACoVEMP-status" id="ACoVEMP-status">
+                <option selected value=""></option>
+                <option value="R=L">R=L</option>
+                <option value="R<L">R&lt;L</option>
+                <option value="R>L">R&gt;L</option>
+                <option value="NR bilat">NR bilat</option>
+                <option value="CNT">CNT</option>
+                <option value="DNT">DNT</option>    
+            </select>
+            <label for=ACoVEMP-AR">AR:</label>
+            <input type="number" id="ACoVEMP-AR" name="ACoVEMP-AR" value="" placeholder="%" style="width: 3em">
+        </legend>
+        <div class="vemp-container">
+            <div class="head-grid-item">Amplitude:</div>
+            <div class="grid-item">
+                <label for="ACoVEMP-rAmplitude">Right:</label>
+                <input type="number" id="ACoVEMP-rAmplitude" name="ACoVEMP-rAmplitude" value="" placeholder="uV"  style="width: 3em">
+            </div>
+            <div class="grid-item">
+                <label for="ACoVEMP-lAmplitude">Left:</label>
+                <input type="number" id="ACoVEMP-lAmplitude" name="ACoVEMP-lAmplitude" value="" placeholder="uV"  style="width: 3em">
+            </div>
+            <div class="head-grid-item">SSCD Check:</div>
+            <div class="grid-item">
+                <label for="ACoVEMP-rSSCD">Right:</label>
+                <select id="ACoVEMP-rSSCD" name="ACoVEMP-rSSCD">
+                    <option selected value=""></option>
+                    <option value="Positive">Positive</option>
+                    <option value="Negative">Negative</option>
+                    <option value="Probable">Probable</option>
+                </select>
+            </div>
+            <div class="grid-item">
+                <label for="ACoVEMP-lSSCD">Left:</label>
+                <select id="ACoVEMP-lSSCD" name="ACoVEMP-lSSCD">
+                    <option selected value=""></option>
+                    <option value="Positive">Positive</option>
+                    <option value="Negative">Negative</option>
+                    <option value="Probable">Probable</option>
+                </select>
+            </div>
+        
+        </div>
+    </fieldset>
+    <label for="oVEMPcomment"><b>oVEMP Comment:</b></label><br>
+    <textarea id="oVEMPcomment" name="oVEMPcomment" value="" placeholder="Enter comment on oVEMP" rows=3 cols = 45></textarea><br>
+
+</div>
+
+<div id="VNG" class="tabcontent">
+    <label for="VNG-mode">Recording Mode:</label>
+    <select id="VNG-mode" name="VNG-mode">
+        <option selected value=""></option>
+        <option value="Binocular">Binocular</option>
+        <option value="Left">Left</option>
+        <option value="Right">Right</option>
+    </select>
+    <br><br>
+    <b>OCULOMOTOR</b>
+    <div class="tymp-container">
+        <div class="grid-item"> <b>NAD</b></div>
+        <div class="grid-item"> <b>TEST</b></div>
+        <div class="grid-item"> <b>NOTES</b> </div>
+        <div class="grid-item"><input type="checkbox" class="largerCheckbox" id="saccades-pass" name="saccades-pass"></div>
+        <div class="grid-item"> Saccades</div>
+        <div class="grid-item"><textarea id="saccade-comment" name="saccade-comment" value="" placeholder="Saccade Results" rows=2 cols = 25></textarea><br><br></div>
+        <div class="grid-item"><input type="checkbox" class="largerCheckbox" id="Gaze_C-GE-pass" name="Gaze_C-GE-pass"></div>
+        <div class="grid-item"> Gaze<br><i>Center</i></div>
+        <div class="grid-item"><textarea id="Gaze_C-GE" name="Gaze_C-GE" value="" placeholder="Gaze Center Results" rows=2 cols = 25></textarea></div>
+        <div class="grid-item"><input type="checkbox" class="largerCheckbox" id="Gaze_C-S-pass" name="Gaze_C-S-pass"></div>
+        <div class="grid-item"> V.D.<br><i>Center</i></div>
+        <div class="grid-item"><textarea id="Gaze_C-S" name="Gaze_C-S" value="" placeholder="Vision Denied Center Results" rows=2 cols = 25></textarea></div>
+        <div class="grid-item"><input type="checkbox" class="largerCheckbox" id="Gaze_R-GE-pass" name="Gaze_R-GE-pass"></div>
+        <div class="grid-item"> Gaze<br><i>Right</i></div>
+        <div class="grid-item"><textarea id="Gaze_R-GE" name="Gaze_R-GE" value="" placeholder="Gaze Right Results" rows=2 cols = 25></textarea></div>
+        <div class="grid-item"><input type="checkbox" class="largerCheckbox" id="Gaze_R-S-pass" name="Gaze_R-S-pass"></div>
+        <div class="grid-item"> V.D.<br><i>Right</i></div>
+        <div class="grid-item"><textarea id="Gaze_R-S" name="Gaze_R-S" value="" placeholder="Vision Denied Right Results" rows=2 cols = 25></textarea></div>
+        <div class="grid-item"><input type="checkbox" class="largerCheckbox" id="Gaze_L-GE-pass" name="Gaze_L-GE-pass"></div>
+        <div class="grid-item"> Gaze<br><i>Left</i></div>
+        <div class="grid-item"><textarea id="Gaze_L-GE" name="Gaze_L-GE" value="" placeholder="Gaze Left Results" rows=2 cols = 25></textarea></div>
+        <div class="grid-item"><input type="checkbox" class="largerCheckbox" id="Gaze_L-S-pass" name="Gaze_L-S-pass"></div>
+        <div class="grid-item"> V.D.<br><i>Left</i></div>
+        <div class="grid-item"><textarea id="Gaze_L-S" name="Gaze_L-S" value="" placeholder="Vision Denied Left Results" rows=2 cols = 25></textarea><br><br></div>
+        <div class="grid-item"><input type="checkbox" class="largerCheckbox" id="OKN-pass" name="OKN-pass"></div>
+        <div class="grid-item"> OKN</div>
+        <div class="grid-item"><textarea id="OKN" name="OKN" value="" placeholder="OKN Results" rows=2 cols = 25></textarea></div>
+        <div class="grid-item"><input type="checkbox" class="largerCheckbox" id="Tracking-pass" name="Tracking-pass"></div>
+        <div class="grid-item"> Tracking</div>
+        <div class="grid-item"><textarea id="Tracking" name="Tracking" value="" placeholder="Tracking Results" rows=2 cols = 25></textarea><br><br></div>
+    </div>
+    <br>
+    <b>POSITIONAL</b>
+    <div class="positional-container">
+        <div class="grid-item"> <b>NAD</b></div>
+        <div class="grid-item"> <b>TEST</b></div>
+        <div class="grid-item"> <b>RESULTS</b> </div>
+        <div class="grid-item"> <b>NOTES</b> </div>
+        <div class="grid-item"><input type="checkbox" class="largerCheckbox" id="rDHP-pass" name="rDHP-pass"></div>
+        <div class="grid-item"> DHP<br><i>Right</i></div>
+        <div class="grid-item">
+            <select id="rDHP-result" name="rDHP-result">
+                <option selected value=""></option>
+                <option value="postCanalithiasis">Post. Can.</option>
+                <option value="postCupulolithiasis">Post. Cup.</option>
+                <option value="antCanalithiasis">Ant. Can.</option>
+                <option value="antCupulolithiasis">Ant. Cup.</option>
+            </select>
+        </div>
+        <div class="grid-item"><textarea id="rDHP-comment" name="rDHP-comment" value="" placeholder="Right DHP comment" rows=2 cols = 15></textarea></div>
+        
+        <div class="grid-item"><input type="checkbox" class="largerCheckbox" id="lDHP-pass" name="lDHP-pass"></div>
+        <div class="grid-item"> DHP<br><i>Left</i></div>
+        <div class="grid-item">
+            <select id="lDHP-result" name="lDHP-result">
+                <option selected value=""></option>
+                <option value="postCanalithiasis">Post. Can.</option>
+                <option value="postCupulolithiasis">Post. Cup.</option>
+                <option value="antCanalithiasis">Ant. Can.</option>
+                <option value="antCupulolithiasis">Ant. Cup.</option>
+            </select>
+        </div>
+        <div class="grid-item"><textarea id="lDHP-comment" name="lDHP-comment" value="" placeholder="Left DHP comment" rows=2 cols = 15></textarea></div>
+        
+        <div class="grid-item"><input type="checkbox" class="largerCheckbox" id="rRoll-pass" name="rRoll-pass"></div>
+        <div class="grid-item"> Roll<br><i>Right</i></div>
+        <div class="grid-item">
+            <select id="rRoll-result" name="rRoll-result">
+                <option selected value=""></option>
+                <option value="latCanalithiasis">Lat. Can.</option>
+                <option value="latCupulolithiasis">Lat. Cup.</option>
+            </select>
+        </div>
+        <div class="grid-item"><textarea id="rRoll-comment" name="rRoll-comment" value="" placeholder="Right Roll comment" rows=2 cols = 15></textarea></div>
+        
+        <div class="grid-item"><input type="checkbox" class="largerCheckbox" id="lRoll-pass" name="lRoll-pass"></div>
+        <div class="grid-item"> Roll<br><i>Left</i></div>
+        <div class="grid-item">
+            <select id="lRoll-result" name="lRoll-result">
+                <option selected value=""></option>
+                <option value="latCanalithiasis">Lat. Can.</option>
+                <option value="latCupulolithiasis">Lat. Cup.</option>
+            </select>
+        </div>
+        <div class="grid-item"><textarea id="lRoll-comment" name="lRoll-comment" value="" placeholder="Left Roll comment" rows=2 cols = 15></textarea></div>
+        
+        <div class="grid-item"><input type="checkbox" class="largerCheckbox" id="bow-lean-pass" name="bow-lean-pass"></div>
+        <div class="grid-item"> Bow &<br>Lean</div>
+        <div class="grid-item">
+            <select id="bow-lean-result" name="bow-lean-result">
+                <option selected value="DNT">DNT</option>
+                <option value="Right">Right</option>
+                <option value="Left">Left</option>
+            </select>
+        </div>
+        <div class="grid-item"><textarea id="bow-lean-comment" name="bow-lean-comment" value="" placeholder="Bow and lean comment" rows=2 cols = 15></textarea></div>
+    </div>
+    <br>
+    <b>CALORIC</b><br>
+    <label for="30degSpont">30&#176;Spontaneous:</label><br>
+    <textarea id="30degSpont" name="30degSpont" value="" placeholder="Enter comment if spontaneous nystagmus noted" rows=2 cols = 45></textarea><br>
+    <fieldset>
+        <legend>
+            <label><b>Caloric</b> Result:</label>
+            <select name="Caloric-status" id="Caloric-status">
+                <option selected value=""></option>
+                <option value="R=L">R=L</option>
+                <option value="R<L">R&lt;L</option>
+                <option value="R>L">R&gt;L</option>
+                <option value="NR bilat">NR bilat</option>
+                <option value="CNT">CNT</option>
+                <option value="DNT">DNT</option>    
+            </select>
+            <label for=Caloric-UW>UW:</label>
+            <input type="number" id="Caloric-UW" name="Caloric-UW" value="" placeholder="%" max=100 min=-100 style="width: 3em">
+        </legend>
+        <fieldset>
+            <legend>
+                <label>Monothermic</label>
+                <input type="checkbox" class="largerCheckbox" id="monothermic" name="monothermic">
+            </legend>
+            <div class="vemp-container">
+                <div class="head-grid-item">Response:</div>
+                <div class="grid-item">
+                    <label for="Caloric-rwR">Right:</label>
+                    <input type="number" id="Caloric-rwR" name="Caloric-rwR" value="" placeholder="SPV"  style="width: 3em">
+                </div>
+                <div class="grid-item">
+                    <label for="Caloric-lwR">Left:</label>
+                    <input type="number" id="Caloric-lwR" name="Caloric-lwR" value="" placeholder="SPV"  style="width: 3em">
+                </div>
+            </div>
+        </fieldset>
+        <br>
+        <textarea id="caloric-comment" name="caloric-comment" value="" placeholder="Caloric comment" rows=3 cols = 45></textarea>
+    </fieldset>
+    <br>
+    <b>OTHER TESTS</b><br>
+    <textarea id="otherTests" name="otherTests" value="" placeholder="Other Test Results" rows=5 cols = 45></textarea>
+</div>
+</form> 
+<script>
+function formReset() {
+  document.getElementById("myForm").reset();
+}
+
+
+function openTab(evt, tabName) {
+  var i, tabcontent, tablinks;
+  tabcontent = document.getElementsByClassName("tabcontent");
+  for (i = 0; i < tabcontent.length; i++) {
+    tabcontent[i].style.display = "none";
+  }
+  tablinks = document.getElementsByClassName("tablinks");
+  for (i = 0; i < tablinks.length; i++) {
+    tablinks[i].className = tablinks[i].className.replace(" active", "");
+  }
+  document.getElementById(tabName).style.display = "block";
+  evt.currentTarget.className += " active";
+}
+
+// Get the element with id="defaultOpen" and click on it
+document.getElementById("defaultOpen").click();
+
+//Update information in header with input
+var fname = document.getElementById('fname'); 
+var lname = document.getElementById('lname');
+var dob = document.getElementById('dob');
+var sexm = document.getElementById('male')
+var sexf = document.getElementById('female')
+var patLabel = document.getElementById('patLabel');
+
+fname.onchange = function() {
+  var result = fname.value + ' ' + lname.value + ' DOB:' +dob.value + ' Sex:' + document.querySelector('input[name = "sex"]:checked').value;  
+  patLabel.innerHTML =  result
+};
+
+lname.onchange = function() {
+    var result = fname.value + ' ' + lname.value + ' DOB:' +dob.value + ' Sex:' + document.querySelector('input[name = "sex"]:checked').value;  
+    patLabel.innerHTML =  result
+};
+
+dob.onchange = function() {
+    var result = fname.value + ' ' + lname.value + ' DOB:' +dob.value + ' Sex:' + document.querySelector('input[name = "sex"]:checked').value;  
+    patLabel.innerHTML =  result
+};
+
+sexm.onclick = function() {
+    var result = fname.value + ' ' + lname.value + ' DOB:' +dob.value + ' Sex:' + document.querySelector('input[name = "sex"]:checked').value;  
+    patLabel.innerHTML =  result
+};
+
+sexf.onclick = function() {
+    var result = fname.value + ' ' + lname.value + ' DOB:' +dob.value + ' Sex:' + document.querySelector('input[name = "sex"]:checked').value;  
+    patLabel.innerHTML =  result
+};
+
+//calculate AR for VEMPS on Amplitude Input
+var BCoAR = document.getElementById('BCoVEMP-AR')
+var BCoAmpR = document.getElementById('BCoVEMP-rAmplitude')
+var BCoAmpL = document.getElementById('BCoVEMP-lAmplitude')
+var ACoAR = document.getElementById('ACoVEMP-AR')
+var ACoAmpR = document.getElementById('ACoVEMP-rAmplitude')
+var ACoAmpL = document.getElementById('ACoVEMP-lAmplitude')
+
+BCoAmpL.onchange = function() {
+    var result = 100*(BCoAmpR.valueAsNumber-BCoAmpL.valueAsNumber)/(BCoAmpR.valueAsNumber+BCoAmpL.valueAsNumber);
+    BCoAR.value = result.toFixed(2);
+}
+
+BCoAmpR.onchange = function() {
+    var result = 100*(BCoAmpR.valueAsNumber-BCoAmpL.valueAsNumber)/(BCoAmpR.valueAsNumber+BCoAmpL.valueAsNumber);
+    BCoAR.value = result.toFixed(2);
+}
+
+ACoAmpL.onchange = function() {
+    var result = 100*(ACoAmpR.valueAsNumber-ACoAmpL.valueAsNumber)/(ACoAmpR.valueAsNumber+ACoAmpL.valueAsNumber);
+    ACoAR.value = result.toFixed(2);
+}
+
+ACoAmpR.onchange = function() {
+    var result = 100*(ACoAmpR.valueAsNumber-ACoAmpL.valueAsNumber)/(ACoAmpR.valueAsNumber+ACoAmpL.valueAsNumber);
+    ACoAR.value = result.toFixed(2);
+}
+//add similar logic for monothermic caloric
+var caloricR = document.getElementById('Caloric-rwR');
+var caloricL = document.getElementById('Caloric-lwR');
+var caloricUW = document.getElementById('Caloric-UW');
+var monothermic = document.getElementById('monothermic');
+
+//caloricL.onchange = function() {
+monothermic.onchange = function() {
+    var result = 100*(Math.abs(caloricR.valueAsNumber)-Math.abs(caloricL.valueAsNumber))/(Math.abs(caloricR.valueAsNumber)+Math.abs(caloricL.valueAsNumber));
+    caloricUW.value = result.toFixed(2);
+}
+
+//add auto note for NAD check of oculomotor tests
+document.getElementById('saccades-pass').onclick = function() {
+    if (document.getElementById('saccades-pass').checked){
+        document.getElementById('saccade-comment').value += "NAD";
+    }
+}
+document.getElementById('Gaze_C-GE-pass').onclick = function() {
+    if (document.getElementById('Gaze_C-GE-pass').checked){
+        document.getElementById('Gaze_C-GE').value += "NAD";
+    }
+}
+document.getElementById('Gaze_C-S-pass').onclick = function() {
+    if (document.getElementById('Gaze_C-S-pass').checked){
+        document.getElementById('Gaze_C-S').value += "NAD";
+    }
+}
+document.getElementById('Gaze_R-GE-pass').onclick = function() {
+    if (document.getElementById('Gaze_R-GE-pass').checked){
+        document.getElementById('Gaze_R-GE').value += "NAD";
+    }
+}
+document.getElementById('Gaze_R-S-pass').onclick = function() {
+    if (document.getElementById('Gaze_R-S-pass').checked){
+        document.getElementById('Gaze_R-S').value += "NAD";
+    }
+}
+document.getElementById('Gaze_L-GE-pass').onclick = function() {
+    if (document.getElementById('Gaze_L-GE-pass').checked){
+        document.getElementById('Gaze_L-GE').value += "NAD";
+    }
+}
+document.getElementById('Gaze_L-S-pass').onclick = function() {
+    if (document.getElementById('Gaze_L-S-pass').checked){
+        document.getElementById('Gaze_L-S').value += "NAD";
+    }
+}
+document.getElementById('OKN-pass').onclick = function() {
+    if (document.getElementById('OKN-pass').checked){
+        document.getElementById('OKN').value += "NAD";
+    }
+}
+document.getElementById('Tracking-pass').onclick = function() {
+    if (document.getElementById('Tracking-pass').checked){
+        document.getElementById('Tracking').value += "NAD";
+    }
+}
+document.getElementById('rDHP-pass').onclick = function() {
+    if (document.getElementById('rDHP-pass').checked){
+        document.getElementById('rDHP-comment').value += "NAD";
+    }
+}
+document.getElementById('lDHP-pass').onclick = function() {
+    if (document.getElementById('lDHP-pass').checked){
+        document.getElementById('lDHP-comment').value += "NAD";
+    }
+}
+document.getElementById('rRoll-pass').onclick = function() {
+    if (document.getElementById('rRoll-pass').checked){
+        document.getElementById('rRoll-comment').value += "NAD";
+    }
+}
+document.getElementById('lRoll-pass').onclick = function() {
+    if (document.getElementById('lRoll-pass').checked){
+        document.getElementById('lRoll-comment').value += "NAD";
+    }
+}
+document.getElementById('bow-lean-pass').onclick = function() {
+    if (document.getElementById('bow-lean-pass').checked){
+        document.getElementById('bow-lean-comment').value += "NAD";
+    }
+}
+
+/* $('form button').on("click",function(e){
+    e.preventDefault();
+}); */
+</script>
+
+</body>
+</html> 
