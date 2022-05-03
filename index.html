@@ -224,12 +224,12 @@ form {
         <div class="grid-item"> <input type="number" id="rTympMEP" name="rTympMEP" value="" placeholder="daPa" max=200 min=-400> </div>
         <div class="grid-item"> <label>MEP</label> </div>
         <div class="grid-item"> <input type="number" id="lTympMEP" name="lTympMEP" value="" placeholder="daPa" max=200 min=-400> </div>
-        <div class="grid-item"> <input type="number" id="rTympAdm" name="rTympAdm" value="" placeholder="mho" max=10.0 min=0> </div>
+        <div class="grid-item"> <input type="number" step="any" id="rTympAdm" name="rTympAdm" value="" placeholder="mho" max=10.0 min=0> </div>
         <div class="grid-item"> <label>Peak</label> </div>
-        <div class="grid-item"> <input type="number" id="lTympAdm" name="lTympAdm" value="" placeholder="mho" max=10.0 min=0> </div>
-        <div class="grid-item"> <input type="number" id="rTympVol" name="rTympVol" value="" placeholder="ml" max=10.0 min=0> </div>
+        <div class="grid-item"> <input type="number" step="any" id="lTympAdm" name="lTympAdm" value="" placeholder="mho" max=10.0 min=0> </div>
+        <div class="grid-item"> <input type="number" step="any" id="rTympVol" name="rTympVol" value="" placeholder="ml" max=10.0 min=0> </div>
         <div class="grid-item"> <label>Vol.</label> </div>
-        <div class="grid-item"> <input type="number" id="lTympVol" name="lTympVol" value="" placeholder="ml" max=10.0 min=0> </div>
+        <div class="grid-item"> <input type="number" step="any" id="lTympVol" name="lTympVol" value="" placeholder="ml" max=10.0 min=0> </div>
     </div>
     <label for="reflexes">Acoustic Reflexes:</label><br>
     <div class="reflex-container">
@@ -294,7 +294,7 @@ form {
                 <option value="Abnormal">Abnormal</option>
             </select><br>
             <label for="rLatVhit-gain">VOR gain:</label>
-            <input type="number" id="rLatVhit-gain" name="rLatVhit-gain" value="" placeholder="0.0" max=2 min=0.0>
+            <input type="number" step="any" id="rLatVhit-gain" name="rLatVhit-gain" value="" placeholder="0.0" max=2 min=0.0>
         </div>
         <div class="vor-grid-item">
             <label for="lLatVhit-state">VOR state:</label>
@@ -308,7 +308,7 @@ form {
                 <option value="Abnormal">Abnormal</option>
             </select><br>
             <label for="lLatVhit-gain">VOR gain:</label>
-            <input type="number" id="lLatVhit-gain" name="lLatVhit-gain" value="" placeholder="0.0" max=2 min=0.0> 
+            <input type="number" step="any" id="lLatVhit-gain" name="lLatVhit-gain" value="" placeholder="0.0" max=2 min=0.0> 
         </div>
         <div class="saccade-grid-item">
             <fieldset>
@@ -338,7 +338,7 @@ form {
                         <option selected value=""></option>
                     </select>
                     <label for="rLatVhit-saccadePR">PR:</label> &nbsp 
-                    <input type="number" id="rLatVhit-saccadePR" name="rLatVhit-saccadePR" value="" placeholder="0.0" max=1.0 min=0.0 style="width: 2em">
+                    <input type="number" step="any" id="rLatVhit-saccadePR" name="rLatVhit-saccadePR" value="" placeholder="0.0" max=1.0 min=0.0 style="width: 2em">
                 </div>
             </fieldset>
         </div>
@@ -370,7 +370,7 @@ form {
                         <option selected value=""></option>
                     </select>
                     <label for="lLatVhit-saccadePR">PR:</label>
-                    <input type="number" id="lLatVhit-saccadePR" name="lLatVhit-saccadePR" value="" placeholder="0.0" max=1.0 min=0.0 style="width: 2em">
+                    <input type="number" step="any" id="lLatVhit-saccadePR" name="lLatVhit-saccadePR" value="" placeholder="0.0" max=1.0 min=0.0 style="width: 2em">
                 </div>
             </fieldset>            
         </div>
@@ -400,7 +400,7 @@ form {
             <option value="Abnormal">Abnormal</option>
         </select><br>
         <label for="rAntVhit-gain">VOR gain:</label>
-        <input type="number" id="rAntVhit-gain" name="rAntVhit-gain" value="" placeholder="0.0" max=2 min=0.0>
+        <input type="number" step="any" id="rAntVhit-gain" name="rAntVhit-gain" value="" placeholder="0.0" max=2 min=0.0>
     </div>
     <div class="vor-grid-item">
         <label for="lAntVhit-state">VOR state:</label>
@@ -414,7 +414,7 @@ form {
             <option value="Abnormal">Abnormal</option>
         </select><br>
         <label for="lAntVhit-gain">VOR gain:</label>
-        <input type="number" id="lAntVhit-gain" name="lAntVhit-gain" value="" placeholder="0.0" max=2 min=0.0> 
+        <input type="number" step="any" id="lAntVhit-gain" name="lAntVhit-gain" value="" placeholder="0.0" max=2 min=0.0> 
     </div>
     <div class="saccade-grid-item">
         <fieldset>
@@ -444,7 +444,7 @@ form {
                     <option selected value=""></option>
                 </select>
                 <label for="rAntVhit-saccadePR">PR:</label>
-                <input type="number" id="rAntVhit-saccadePR" name="rAntVhit-saccadePR" value="" placeholder="0.0" max=1.0 min=0.0 style="width: 2em">
+                <input type="number" step="any" id="rAntVhit-saccadePR" name="rAntVhit-saccadePR" value="" placeholder="0.0" max=1.0 min=0.0 style="width: 2em">
             </div>
         </fieldset>
     </div>
@@ -476,7 +476,7 @@ form {
                     <option selected value=""></option>
                 </select>
                 <label for="lAntVhit-saccadePR">PR:</label>
-                <input type="number" id="lAntVhit-saccadePR" name="lAntVhit-saccadePR" value="" placeholder="0.0" max=1.0 min=0.0 style="width: 2em">
+                <input type="number" step="any" id="lAntVhit-saccadePR" name="lAntVhit-saccadePR" value="" placeholder="0.0" max=1.0 min=0.0 style="width: 2em">
             </div>
         </fieldset>            
     </div>
@@ -506,7 +506,7 @@ form {
             <option value="Abnormal">Abnormal</option>
         </select><br>
         <label for="rPostVhit-gain">VOR gain:</label>
-        <input type="number" id="rPostVhit-gain" name="rPostVhit-gain" value="" placeholder="0.0" max=2 min=0.0>
+        <input type="number" step="any" id="rPostVhit-gain" name="rPostVhit-gain" value="" placeholder="0.0" max=2 min=0.0>
     </div>
     <div class="vor-grid-item">
         <label for="lPostVhit-state">VOR state:</label>
@@ -520,7 +520,7 @@ form {
             <option value="Abnormal">Abnormal</option>
         </select><br>
         <label for="lPostVhit-gain">VOR gain:</label>
-        <input type="number" id="lPostVhit-gain" name="lPostVhit-gain" value="" placeholder="0.0" max=2 min=0.0> 
+        <input type="number" step="any" id="lPostVhit-gain" name="lPostVhit-gain" value="" placeholder="0.0" max=2 min=0.0> 
     </div>
     <div class="saccade-grid-item">
         <fieldset>
@@ -550,7 +550,7 @@ form {
                     <option selected value=""></option>
                 </select>
                 <label for="rPostVhit-saccadePR">PR:</label>
-                <input type="number" id="rPostVhit-saccadePR" name="rPostVhit-saccadePR" value="" placeholder="0.0" max=1.0 min=0.0 style="width: 2em">
+                <input type="number" step="any" id="rPostVhit-saccadePR" name="rPostVhit-saccadePR" value="" placeholder="0.0" max=1.0 min=0.0 style="width: 2em">
             </div>
         </fieldset>
     </div>
@@ -582,7 +582,7 @@ form {
                     <option selected value=""></option>
                 </select>
                 <label for="lPostVhit-saccadePR">PR:</label>
-                <input type="number" id="lPostVhit-saccadePR" name="lPostVhit-saccadePR" value="" placeholder="0.0" max=1.0 min=0.0 style="width: 2em">
+                <input type="number" step="any" id="lPostVhit-saccadePR" name="lPostVhit-saccadePR" value="" placeholder="0.0" max=1.0 min=0.0 style="width: 2em">
             </div>
         </fieldset>            
     </div>
@@ -612,26 +612,26 @@ form {
                 <option value="DNT">DNT</option>    
             </select>
             <label for=ACcVEMP-NAR">NAR:</label>
-            <input type="number" id="ACcVEMP-NAR" name="ACcVEMP-NAR" value="" placeholder="%" max=100 min=-100 style="width: 3em">
+            <input type="number" step="any" id="ACcVEMP-NAR" name="ACcVEMP-NAR" value="" placeholder="%" max=100 min=-100 style="width: 3em">
         </legend>
         <div class="vemp-container">
             <div class="head-grid-item">P1 Latency:</div>
             <div class="grid-item">
                 <label for="ACcVEMP-rP1latency">Right:</label>
-                <input type="number" id="ACcVEMP-rP1latency" name="ACcVEMP-rP1latency" value="" placeholder="ms" max=80 min=0.0 style="width: 2em">
+                <input type="number" step="any" id="ACcVEMP-rP1latency" name="ACcVEMP-rP1latency" value="" placeholder="ms" max=80 min=0.0 style="width: 2em">
             </div>
             <div class="grid-item">
                 <label for="ACcVEMP-lP1latency">Left:</label>
-                <input type="number" id="ACcVEMP-lP1latency" name="ACcVEMP-lP1latency" value="" placeholder="ms" max=80 min=0.0 style="width: 2em">
+                <input type="number" step="any" id="ACcVEMP-lP1latency" name="ACcVEMP-lP1latency" value="" placeholder="ms" max=80 min=0.0 style="width: 2em">
             </div>
             <div class="head-grid-item">N1 Latency:</div>
             <div class="grid-item">
                 <label for="ACcVEMP-rN1latency">Right:</label>
-                <input type="number" id="ACcVEMP-rN1latency" name="ACcVEMP-rN1latency" value="" placeholder="ms" max=80 min=0.0 style="width: 2em">
+                <input type="number" step="any" id="ACcVEMP-rN1latency" name="ACcVEMP-rN1latency" value="" placeholder="ms" max=80 min=0.0 style="width: 2em">
             </div>
             <div class="grid-item">
                 <label for="ACcVEMP-lN1latency">Left:</label>
-                <input type="number" id="ACcVEMP-lN1latency" name="ACcVEMP-lN1latency" value="" placeholder="ms" max=80 min=0.0 style="width: 2em">
+                <input type="number" step="any" id="ACcVEMP-lN1latency" name="ACcVEMP-lN1latency" value="" placeholder="ms" max=80 min=0.0 style="width: 2em">
             </div>
         </div>
     </fieldset>
@@ -649,26 +649,26 @@ form {
                 <option value="DNT">DNT</option>    
             </select>
             <label for=BCcVEMP-NAR">NAR:</label>
-            <input type="number" id="BCcVEMP-NAR" name="BCcVEMP-NAR" value="" placeholder="%" max=100 min=-100 style="width: 3em">
+            <input type="number" step="any" id="BCcVEMP-NAR" name="BCcVEMP-NAR" value="" placeholder="%" max=100 min=-100 style="width: 3em">
         </legend>
         <div class="vemp-container">
             <div class="head-grid-item">P1 Latency:</div>
             <div class="grid-item">
                 <label for="BCcVEMP-rP1latency">Right:</label>
-                <input type="number" id="BCcVEMP-rP1latency" name="BCcVEMP-rP1latency" value="" placeholder="ms" max=80 min=0.0 style="width: 2em">
+                <input type="number" step="any" id="BCcVEMP-rP1latency" name="BCcVEMP-rP1latency" value="" placeholder="ms" max=80 min=0.0 style="width: 2em">
             </div>
             <div class="grid-item">
                 <label for="BCcVEMP-lP1latency">Left:</label>
-                <input type="number" id="BCcVEMP-lP1latency" name="BCcVEMP-lP1latency" value="" placeholder="ms" max=80 min=0.0 style="width: 2em">
+                <input type="number" step="any" id="BCcVEMP-lP1latency" name="BCcVEMP-lP1latency" value="" placeholder="ms" max=80 min=0.0 style="width: 2em">
             </div>
             <div class="head-grid-item">N1 Latency:</div>
             <div class="grid-item">
                 <label for="BCcVEMP-rN1latency">Right:</label>
-                <input type="number" id="BCcVEMP-rN1latency" name="BCcVEMP-rN1latency" value="" placeholder="ms" max=80 min=0.0 style="width: 2em">
+                <input type="number" step="any" id="BCcVEMP-rN1latency" name="BCcVEMP-rN1latency" value="" placeholder="ms" max=80 min=0.0 style="width: 2em">
             </div>
             <div class="grid-item">
                 <label for="BCcVEMP-lN1latency">Left:</label>
-                <input type="number" id="BCcVEMP-lN1latency" name="BCcVEMP-lN1latency" value="" placeholder="ms" max=80 min=0.0 style="width: 2em">
+                <input type="number" step="any" id="BCcVEMP-lN1latency" name="BCcVEMP-lN1latency" value="" placeholder="ms" max=80 min=0.0 style="width: 2em">
             </div>
         </div>
     </fieldset>
@@ -688,35 +688,35 @@ form {
                 <option value="DNT">DNT</option>    
             </select>
             <label for=BCoVEMP-AR">AR:</label>
-            <input type="number" id="BCoVEMP-AR" name="BCoVEMP-AR" value="" placeholder="%" style="width: 3em">
+            <input type="number" step="any" id="BCoVEMP-AR" name="BCoVEMP-AR" value="" placeholder="%" style="width: 3em">
         </legend>
         <div class="vemp-container">
             <div class="head-grid-item">Amplitude:</div>
             <div class="grid-item">
                 <label for="BCoVEMP-rAmplitude">Right:</label>
-                <input type="number" id="BCoVEMP-rAmplitude" name="BCoVEMP-rAmplitude" value="" placeholder="uV"  style="width: 3em">
+                <input type="number" step="any" id="BCoVEMP-rAmplitude" name="BCoVEMP-rAmplitude" value="" placeholder="uV"  style="width: 3em">
             </div>
             <div class="grid-item">
                 <label for="BCoVEMP-lAmplitude">Left:</label>
-                <input type="number" id="BCoVEMP-lAmplitude" name="BCoVEMP-lAmplitude" value="" placeholder="uV"  style="width: 3em">
+                <input type="number" step="any" id="BCoVEMP-lAmplitude" name="BCoVEMP-lAmplitude" value="" placeholder="uV"  style="width: 3em">
             </div>
             <div class="head-grid-item">P1 Latency:</div>
             <div class="grid-item">
                 <label for="BCoVEMP-rP1latency">Right:</label>
-                <input type="number" id="BCoVEMP-rP1latency" name="BCoVEMP-rP1latency" value="" placeholder="ms" max=80 min=0.0 style="width: 2em">
+                <input type="number" step="any" id="BCoVEMP-rP1latency" name="BCoVEMP-rP1latency" value="" placeholder="ms" max=80 min=0.0 style="width: 2em">
             </div>
             <div class="grid-item">
                 <label for="BCoVEMP-lP1latency">Left:</label>
-                <input type="number" id="BCoVEMP-lP1latency" name="BCoVEMP-lP1latency" value="" placeholder="ms" max=80 min=0.0 style="width: 2em">
+                <input type="number" step="any" id="BCoVEMP-lP1latency" name="BCoVEMP-lP1latency" value="" placeholder="ms" max=80 min=0.0 style="width: 2em">
             </div>
             <div class="head-grid-item">N1 Latency:</div>
             <div class="grid-item">
                 <label for="BCoVEMP-rN1latency">Right:</label>
-                <input type="number" id="BCoVEMP-rN1latency" name="BCoVEMP-rN1latency" value="" placeholder="ms" max=80 min=0.0 style="width: 2em">
+                <input type="number" step="any" id="BCoVEMP-rN1latency" name="BCoVEMP-rN1latency" value="" placeholder="ms" max=80 min=0.0 style="width: 2em">
             </div>
             <div class="grid-item">
                 <label for="BCoVEMP-lN1latency">Left:</label>
-                <input type="number" id="BCoVEMP-lN1latency" name="BCoVEMP-lN1latency" value="" placeholder="ms" max=80 min=0.0 style="width: 2em">
+                <input type="number" step="any" id="BCoVEMP-lN1latency" name="BCoVEMP-lN1latency" value="" placeholder="ms" max=80 min=0.0 style="width: 2em">
             </div>
         </div>
     </fieldset>
@@ -734,17 +734,17 @@ form {
                 <option value="DNT">DNT</option>    
             </select>
             <label for=ACoVEMP-AR">AR:</label>
-            <input type="number" id="ACoVEMP-AR" name="ACoVEMP-AR" value="" placeholder="%" style="width: 3em">
+            <input type="number" step="any" id="ACoVEMP-AR" name="ACoVEMP-AR" value="" placeholder="%" style="width: 3em">
         </legend>
         <div class="vemp-container">
             <div class="head-grid-item">Amplitude:</div>
             <div class="grid-item">
                 <label for="ACoVEMP-rAmplitude">Right:</label>
-                <input type="number" id="ACoVEMP-rAmplitude" name="ACoVEMP-rAmplitude" value="" placeholder="uV"  style="width: 3em">
+                <input type="number" step="any" id="ACoVEMP-rAmplitude" name="ACoVEMP-rAmplitude" value="" placeholder="uV"  style="width: 3em">
             </div>
             <div class="grid-item">
                 <label for="ACoVEMP-lAmplitude">Left:</label>
-                <input type="number" id="ACoVEMP-lAmplitude" name="ACoVEMP-lAmplitude" value="" placeholder="uV"  style="width: 3em">
+                <input type="number" step="any" id="ACoVEMP-lAmplitude" name="ACoVEMP-lAmplitude" value="" placeholder="uV"  style="width: 3em">
             </div>
             <div class="head-grid-item">SSCD Check:</div>
             <div class="grid-item">
@@ -899,7 +899,7 @@ form {
                 <option value="DNT">DNT</option>    
             </select>
             <label for=Caloric-UW>UW:</label>
-            <input type="number" id="Caloric-UW" name="Caloric-UW" value="" placeholder="%" max=100 min=-100 style="width: 3em">
+            <input type="number" step="any" id="Caloric-UW" name="Caloric-UW" value="" placeholder="%" max=100 min=-100 style="width: 3em">
         </legend>
         <fieldset>
             <legend>
@@ -910,11 +910,11 @@ form {
                 <div class="head-grid-item">Response:</div>
                 <div class="grid-item">
                     <label for="Caloric-rwR">Right:</label>
-                    <input type="number" id="Caloric-rwR" name="Caloric-rwR" value="" placeholder="SPV"  style="width: 3em">
+                    <input type="number" step="any" id="Caloric-rwR" name="Caloric-rwR" value="" placeholder="SPV"  style="width: 3em">
                 </div>
                 <div class="grid-item">
                     <label for="Caloric-lwR">Left:</label>
-                    <input type="number" id="Caloric-lwR" name="Caloric-lwR" value="" placeholder="SPV"  style="width: 3em">
+                    <input type="number" step="any" id="Caloric-lwR" name="Caloric-lwR" value="" placeholder="SPV"  style="width: 3em">
                 </div>
             </div>
         </fieldset>
