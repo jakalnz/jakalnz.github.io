@@ -192,18 +192,22 @@ form {
 
 <div id="Patient" class="tabcontent">
   
-  <p>Patient info, summary and sessions ans results summary.</p>
-  <div class="grid-container">
-    <div class="grid-item"> <label for="fname">First name:</label> </div>
-    <div class="grid-item"> <label for="lname">Last name:</label> </div>
-    <div class="grid-item"> <input type="text" id="fname" name="fname" value="" placeholder="First" required> </div>
-    <div class="grid-item"> <input type="text" id="lname" name="lname" value=""placeholder="Last" required> </div>
-    <div class="grid-item"> <label for="dob">Date of Birth:</label> </div>
-    <div class="grid-item"> <label for="sex">Sex:</label> </div>
-    <div class="grid-item"> <input type="date" id="dob" name="dob" value=""> </div>
-    <div class="grid-item"> <input type="radio" id="male" name="sex" checked = "checked" value = "male" > <label for "male" >Male</label> <input type="radio" id="female" name="sex" value = "female"> <label for "female" >Female</label></div>
+  <p>Patient info and general session notes</p>
+    <div class="grid-container">
+        <div class="grid-item"> <label for="fname">First name:</label> </div>
+        <div class="grid-item"> <label for="lname">Last name:</label> </div>
+        <div class="grid-item"> <input type="text" id="fname" name="fname" value="" placeholder="First" required> </div>
+        <div class="grid-item"> <input type="text" id="lname" name="lname" value=""placeholder="Last" required> </div>
+        <div class="grid-item"> <label for="dob">Date of Birth:</label> </div>
+        <div class="grid-item"> <label for="sex">Sex:</label> </div>
+        <div class="grid-item"> <input type="date" id="dob" name="dob" value=""> </div>
+        <div class="grid-item"> <input type="radio" id="male" name="sex" checked = "checked" value = "male" > <label for "male" >Male</label> <input type="radio" id="female" name="sex" value = "female"> <label for "female" >Female</label></div>
     
-  </div>
+    </div>
+    <div>
+        <label for="sessionNotes">Session Notes:</label><br>
+        <textarea id="sessionNotes" name="sessionNotes" value="" placeholder="Session Notes" rows=5 cols = 25></textarea><br>
+    </div>
 </div>
 
 <div id="Prechecks" class="tabcontent">
