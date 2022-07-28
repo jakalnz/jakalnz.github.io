@@ -69,6 +69,13 @@ body {font-family: Arial;}
      padding: 1px;
  }
 
+ .tympr-container {
+     display: grid;
+     grid-template-columns: auto auto auto;
+     background-color: #ffffff;
+     padding: 1px;
+ }
+
  .column-container {
      display: grid;
      grid-template-columns: auto;
@@ -150,6 +157,11 @@ input.largerCheckbox {
     width: 20px;
     height: 20px;
 }
+
+input[type=number]{
+    width: 60px;
+}
+
 form {
   /* Center the form on the page */
   margin: 0 auto;
@@ -218,22 +230,35 @@ form {
     <label for="audiometry">Audiometry:</label><br>
     <textarea id="audiometry" name="audiometry" value="" placeholder="Enter comment on Audiometry" rows=3 cols = 45></textarea><br>
     <label for="immittance">Tympanometry:</label><br>
-    <div class="tymp-container">
-        <div class="grid-item"> <label>RIGHT</label> </div>
-        <div class="grid-item"> <label></label> </div>
-        <div class="grid-item"> <label>LEFT</label> </div>
-        <div class="grid-item"> <input type="text" id="rTympType" name="rTympType" value="" placeholder="A/B/C" size=5> </div>
-        <div class="grid-item"> <label>Type</label> </div>
-        <div class="grid-item"> <input type="text" id="lTympType" name="lTympType" value="" placeholder="A/B/C" size=5> </div>
-        <div class="grid-item"> <input type="number" id="rTympMEP" name="rTympMEP" value="" placeholder="daPa" max=200 min=-400> </div>
-        <div class="grid-item"> <label>MEP</label> </div>
-        <div class="grid-item"> <input type="number" id="lTympMEP" name="lTympMEP" value="" placeholder="daPa" max=200 min=-400> </div>
-        <div class="grid-item"> <input type="number" step="any" id="rTympAdm" name="rTympAdm" value="" placeholder="mho" max=30.0 min=0> </div>
-        <div class="grid-item"> <label>Peak</label> </div>
-        <div class="grid-item"> <input type="number" step="any" id="lTympAdm" name="lTympAdm" value="" placeholder="mho" max=30.0 min=0> </div>
-        <div class="grid-item"> <input type="number" step="any" id="rTympVol" name="rTympVol" value="" placeholder="ml" max=30.0 min=0> </div>
-        <div class="grid-item"> <label>Vol.</label> </div>
-        <div class="grid-item"> <input type="number" step="any" id="lTympVol" name="lTympVol" value="" placeholder="ml" max=30.0 min=0> </div>
+    <div class="tympr-container">
+        <div class="grid-item">
+            <div class="column-container">
+                <div class="grid-item"> <label>RIGHT</label> </div>
+                <div class="grid-item"> <input type="text" id="rTympType" name="rTympType" value="" placeholder="A/B/C" size=5> </div>
+                <div class="grid-item"> <input type="number" id="rTympMEP" name="rTympMEP" value="" placeholder="daPa" max=200 min=-400> </div>
+                <div class="grid-item"> <input type="number" step="any" id="rTympAdm" name="rTympAdm" value="" placeholder="mho" max=30.0 min=0 size=5 style='width:10'> </div>
+                <div class="grid-item"> <input type="number" step="any" id="rTympVol" name="rTympVol" value="" placeholder="ml" max=30.0 min=0 size=5> </div>
+            </div>
+        </div>
+        <div class="grid-item">
+            <div class="column-container">
+                <div class="grid-item"> <label>Ear</label> </div>
+                <div class="grid-item"> <label>Type</label> </div>
+                <div class="grid-item"> <label>MEP</label> </div>
+                <div class="grid-item"> <label>Peak</label> </div>
+                <div class="grid-item"> <label>Vol.</label> </div>
+            </div>
+        </div>
+        <div class="grid-item">
+            <div class="column-container">
+                <div class="grid-item"> <label>LEFT</label> </div>
+                <div class="grid-item"> <input type="text" id="lTympType" name="lTympType" value="" placeholder="A/B/C" size=5> </div>
+                <div class="grid-item"> <input type="number" id="lTympMEP" name="lTympMEP" value="" placeholder="daPa" max=200 min=-400> </div>
+                <div class="grid-item"> <input type="number" step="any" id="lTympAdm" name="lTympAdm" value="" placeholder="mho" max=30.0 min=0> </div>
+                <div class="grid-item"> <input type="number" step="any" id="lTympVol" name="lTympVol" value="" placeholder="ml" max=30.0 min=0> </div>
+            </div>
+        </div>
+
     </div>
     <label for="reflexes">Acoustic Reflexes:</label><br>
     <div class="reflex-container">
@@ -342,7 +367,7 @@ form {
                         <option selected value=""></option>
                     </select>
                     <label for="rLatVhit-saccadePR">PR:</label> &nbsp 
-                    <input type="number" step="any" id="rLatVhit-saccadePR" name="rLatVhit-saccadePR" value="" placeholder="0.0" max=1.0 min=0.0 style="width: 2em">
+                    <input type="number" step="any" id="rLatVhit-saccadePR" name="rLatVhit-saccadePR" value="" placeholder="0" max=100 min=0 style="width: 3em">
                 </div>
             </fieldset>
         </div>
@@ -374,7 +399,7 @@ form {
                         <option selected value=""></option>
                     </select>
                     <label for="lLatVhit-saccadePR">PR:</label>
-                    <input type="number" step="any" id="lLatVhit-saccadePR" name="lLatVhit-saccadePR" value="" placeholder="0.0" max=1.0 min=0.0 style="width: 2em">
+                    <input type="number" step="any" id="lLatVhit-saccadePR" name="lLatVhit-saccadePR" value="" placeholder="0" max=100 min=0 style="width: 3em">
                 </div>
             </fieldset>            
         </div>
@@ -448,7 +473,7 @@ form {
                     <option selected value=""></option>
                 </select>
                 <label for="rAntVhit-saccadePR">PR:</label>
-                <input type="number" step="any" id="rAntVhit-saccadePR" name="rAntVhit-saccadePR" value="" placeholder="0.0" max=1.0 min=0.0 style="width: 2em">
+                <input type="number" step="any" id="rAntVhit-saccadePR" name="rAntVhit-saccadePR" value="" placeholder="0" max=100 min=0 style="width: 3em">
             </div>
         </fieldset>
     </div>
@@ -480,7 +505,7 @@ form {
                     <option selected value=""></option>
                 </select>
                 <label for="lAntVhit-saccadePR">PR:</label>
-                <input type="number" step="any" id="lAntVhit-saccadePR" name="lAntVhit-saccadePR" value="" placeholder="0.0" max=1.0 min=0.0 style="width: 2em">
+                <input type="number" step="any" id="lAntVhit-saccadePR" name="lAntVhit-saccadePR" value="" placeholder="0" max=100 min=0 style="width: 3em">
             </div>
         </fieldset>            
     </div>
@@ -554,7 +579,7 @@ form {
                     <option selected value=""></option>
                 </select>
                 <label for="rPostVhit-saccadePR">PR:</label>
-                <input type="number" step="any" id="rPostVhit-saccadePR" name="rPostVhit-saccadePR" value="" placeholder="0.0" max=1.0 min=0.0 style="width: 2em">
+                <input type="number" step="any" id="rPostVhit-saccadePR" name="rPostVhit-saccadePR" value="" placeholder="0" max=100 min=0 style="width: 3em">
             </div>
         </fieldset>
     </div>
@@ -586,7 +611,7 @@ form {
                     <option selected value=""></option>
                 </select>
                 <label for="lPostVhit-saccadePR">PR:</label>
-                <input type="number" step="any" id="lPostVhit-saccadePR" name="lPostVhit-saccadePR" value="" placeholder="0.0" max=1.0 min=0.0 style="width: 2em">
+                <input type="number" step="any" id="lPostVhit-saccadePR" name="lPostVhit-saccadePR" value="" placeholder="0" max=100 min=0 style="width: 3em">
             </div>
         </fieldset>            
     </div>
@@ -933,6 +958,8 @@ form {
     <br>
     <b>OTHER TESTS</b><br>
     <textarea id="otherTests" name="otherTests" value="" placeholder="Other Test Results" rows=5 cols = 45></textarea>
+    <b>VNG COMMENT</b><br>
+    <textarea id="vngComment" name="vngComment" value="" placeholder="Comment on VNG" rows=5 cols = 45></textarea>
 </div>
 </form> 
 <script>
