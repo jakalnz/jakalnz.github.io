@@ -644,6 +644,24 @@ form {
             <input type="number" step="any" id="ACcVEMP-NAR" name="ACcVEMP-NAR" value="" placeholder="%" max=100 min=-100 style="width: 4em">
         </legend>
         <div class="vemp-container">
+            <div class="head-grid-item">Amplitude:</div>
+            <div class="grid-item">
+                <label for="ACcVEMP-rAmplitude">Right:</label>
+                <input type="number" step="any" id="ACcVEMP-rAmplitude" name="ACcVEMP-rAmplitude" value="" placeholder="uV" max=6000 min=0.0 style="width: 4em">
+            </div>
+            <div class="grid-item">
+                <label for="ACcVEMP-lAmplitude">Left:</label>
+                <input type="number" step="any" id="ACcVEMP-lAmplitude" name="ACcVEMP-lAmplitude" value="" placeholder="uV" max=6000 min=0.0 style="width: 4em">
+            </div>
+            <div class="head-grid-item">Rectify:</div>
+            <div class="grid-item">
+                <label for="ACcVEMP-rRectuvms">Right:</label>
+                <input type="number" step="any" id="ACcVEMP-rRectuvms" name="ACcVEMP-rRectuvms" value="" placeholder="uVms" max=6000 min=0.0 style="width: 4em">
+            </div>
+            <div class="grid-item">
+                <label for="ACcVEMP-lP1latency">Left:</label>
+                <input type="number" step="any" id="ACcVEMP-lRectuvms" name="ACcVEMP-lRectuvms" value="" placeholder="uVms" max=6000 min=0.0 style="width: 4em">
+            </div>
             <div class="head-grid-item">P1 Latency:</div>
             <div class="grid-item">
                 <label for="ACcVEMP-rP1latency">Right:</label>
@@ -1018,7 +1036,30 @@ sexf.onclick = function() {
     patLabel.innerHTML =  result
 };
 
-//calculate AR for VEMPS on Amplitude Input
+
+//calculate AR for ACcVEMPS on RECT Input
+var ACcNAR = document.getElementById('ACcVEMP-NAR')
+var ACcAmpR = document.getElementById('ACcVEMP-rAmplitude')
+var ACcAmpL = document.getElementById('ACcVEMP-lAmplitude')
+var ACcRectR = document.getElementById('ACcVEMP-rRectuvms')
+var ACcRectL = document.getElementById('ACcVEMP-lRectuvms')
+
+ACcRectR.onchange = function() {
+    
+    var rNorm = (ACcAmpR.valueAsNumber)/(ACcRectR.valueAsNumber/20);
+    var lNorm = (ACcAmpL.valueAsNumber)/(ACcRectL.valueAsNumber/20);
+    var result = 100*(rNorm-lNorm)/(rNorm+lNorm);
+    ACcNAR.value = result.toFixed(2);
+}
+
+ACcRectL.onchange = function() {
+    var rNorm = (ACcAmpR.valueAsNumber)/(ACcRectR.valueAsNumber/20);
+    var lNorm = (ACcAmpL.valueAsNumber)/(ACcRectL.valueAsNumber/20);
+    var result = 100*(rNorm-lNorm)/(rNorm+lNorm);
+    ACcNAR.value = result.toFixed(2);
+}
+
+//calculate AR for oVEMPS on Amplitude Input
 var BCoAR = document.getElementById('BCoVEMP-AR')
 var BCoAmpR = document.getElementById('BCoVEMP-rAmplitude')
 var BCoAmpL = document.getElementById('BCoVEMP-lAmplitude')
