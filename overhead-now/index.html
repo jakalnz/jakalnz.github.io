@@ -113,12 +113,21 @@ aside{border-left:1px solid var(--line);background:var(--panel);display:flex;fle
   <aside>
     <div class="tabs">
       <label><input type="checkbox" id="heliOnly"> Helicopters only</label>
+      <label><input type="checkbox" id="ground"> Show on ground</label>
       <label><input type="checkbox" id="auto" checked> Auto-refresh</label>
       <span class="count" id="count"></span>
     </div>
     <div id="list"><div class="empty">No location yet.</div></div>
     <section id="detail" hidden></section>
-    <div class="note">Live ADS-B data from adsb.lol / airplanes.live (community feeders); aircraft details and routes from adsbdb.com. Some aircraft, like police or military, may hide their identity or not broadcast at all.</div>
+    <details class="note" id="relayBox">
+      <summary>Data relay settings</summary>
+      <p style="margin:6px 0">The free flight feeds only answer this page through a relay. Paste your relay link (it ends in <code>.workers.dev</code>).</p>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <input id="relay" placeholder="https://overhead-relay.example.workers.dev" style="flex:1;min-width:0;width:auto" aria-label="Relay link">
+        <button id="saveRelay" type="button">Save</button>
+      </div>
+    </details>
+    <div class="note">Live ADS-B data from adsb.fi / adsb.lol (community feeders); aircraft details and routes from adsbdb.com. Some aircraft, like police or military, may hide their identity or not broadcast at all.</div>
   </aside>
 </main>
 
@@ -130,12 +139,13 @@ const $ = id => document.getElementById(id);
 const store = {get(k){try{return localStorage.getItem(k)}catch(e){return null}}, set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
 
 // ---------- Data sources ----------
-const FEEDS = [
-  {name:'adsb.lol',        url:(la,lo,nm)=>`https://api.adsb.lol/v2/point/${la}/${lo}/${nm}`},
-  {name:'airplanes.live',  url:(la,lo,nm)=>`https://api.airplanes.live/v2/point/${la}/${lo}/${nm}`},
-];
+// The public feeds block direct browser calls (no CORS), so the page goes through a small relay
+// (relay-worker.js in this folder, deployed as a Cloudflare Worker).
+const DEFAULT_RELAY = '';
+const relayUrl = () => (store.get('ow-relay') || DEFAULT_RELAY).trim().replace(/\/+$/,'');
+const feeds = () => relayUrl() ? [{name:'relay', url:(la,lo,nm)=>`${relayUrl()}/point/${la}/${lo}/${nm}`}] : [];
 const ADSBDB = 'https://api.adsbdb.com/v0';
-const REFRESH_MS = 10000;
+const REFRESH_MS = 15000;
 
 // ---------- State ----------
 let me = null;               // {lat, lon}
@@ -196,9 +206,9 @@ function isHeli(a){
 function isMil(a){ return (a.dbFlags & 1) === 1; }
 
 const ROLES = [
-  {re:/POLICE|CONSTAB|SHERIFF|STATE PATROL|HIGHWAY PATROL|NPAS|LAW ENFORCE|GENDARM|POLIZEI|CUSTOMS|BORDER PATROL/i, cs:/^(UKP|NPAS|POL)/, label:'Police / law enforcement',
+  {re:/POLICE|CONSTAB|SHERIFF|STATE PATROL|HIGHWAY PATROL|NPAS|LAW ENFORCE|GENDARM|POLIZEI|CUSTOMS|BORDER PATROL/i, cs:/^(UKP|NPAS|POL|PLC\d)/, label:'Police / law enforcement',
    blurb:'Police aircraft often circle a fixed spot for searches, pursuits, missing-person hunts or crowd monitoring.'},
-  {re:/AMBUL|MEDIC|HEMS|AIR METHODS|LIFE ?FLIGHT|LIFE ?STAR|CARE ?FLIGHT|MERCY|MED ?FLIGHT|AIR EVAC|AIRMED|REACH AIR|STAT MEDEVAC|HELIMED|AIR AMBULANCE/i, cs:/^(HLE|MEDIC|LIFE)/, label:'Air ambulance',
+  {re:/AMBUL|MEDIC|HEMS|RESCUE HELICOPTER|WESTPAC|AIR METHODS|LIFE ?FLIGHT|LIFE ?STAR|CARE ?FLIGHT|MERCY|MED ?FLIGHT|AIR EVAC|AIRMED|REACH AIR|STAT MEDEVAC|HELIMED|AIR AMBULANCE/i, cs:/^(HLE|MEDIC|LIFE|NOR\d|RSQ)/, label:'Air ambulance / rescue helicopter',
    blurb:'Medical helicopters fly direct to an incident or between hospitals, usually fast and low with few turns.'},
   {re:/COAST ?GUARD|RESCUE|\bSAR\b|COASTGUARD/i, cs:/^(RSCU|CG\d|COAST)/, label:'Search & rescue',
    blurb:'Search and rescue aircraft often fly search patterns: parallel tracks, expanding squares or orbits.'},
@@ -313,6 +323,7 @@ $('radius').onchange = () => { drawRing(); if (me){ map.setView([me.lat,me.lon],
 $('units').onchange = () => { store.set('ow-units', units()); render(); if (selected) showDetail(selected, false); };
 $('heliOnly').onchange = () => { store.set('ow-heli', $('heliOnly').checked?'1':'0'); render(); };
 $('auto').onchange = schedule;
+$('ground').onchange = render;
 
 function schedule(){
   clearInterval(timer);
@@ -331,8 +342,9 @@ async function refresh(){
   loading = true;
   const nm = +$('radius').value;
   let data = null, used = null, lastErr = null;
-  for (const f of FEEDS){
-    try { data = await fetchJson(f.url(me.lat.toFixed(4), me.lon.toFixed(4), nm)); used = f.name; break; }
+  if (!feeds().length){ loading = false; setStatus('No data relay set yet. Open "Data relay settings" at the bottom of the list and paste your relay link.', true); return; }
+  for (const f of feeds()){
+    try { data = await fetchJson(f.url(me.lat.toFixed(4), me.lon.toFixed(4), nm)); used = data.source || f.name; break; }
     catch(e){ lastErr = e; }
   }
   loading = false;
@@ -352,7 +364,7 @@ async function refresh(){
   }
   for (const hex of [...aircraft.keys()]) if (!seen.has(hex)) { aircraft.delete(hex); removeMarker(hex); }
   for (const hex of [...history.keys()]) if (!aircraft.has(hex) && now - (history.get(hex).at(-1)?.t||0) > 15*60e3) history.delete(hex);
-  setStatus(`${aircraft.size} aircraft within ${nm} nm · updated ${new Date().toLocaleTimeString()} via ${used}` + ($('auto').checked?' · refreshing every 10 s':''));
+  setStatus(`${aircraft.size} aircraft within ${nm} nm · updated ${new Date().toLocaleTimeString()} via ${used}` + ($('auto').checked?' · refreshing every 15 s':''));
   render();
   if (selected && aircraft.has(selected)) showDetail(selected, false);
 }
@@ -361,11 +373,12 @@ async function refresh(){
 function clearMarkers(){ for (const hex of [...markers.keys()]) removeMarker(hex); }
 function removeMarker(hex){ markers.get(hex)?.remove(); markers.delete(hex); trails.get(hex)?.remove(); trails.delete(hex); }
 function render(){
-  const heliOnly = $('heliOnly').checked;
-  const list = [...aircraft.values()].filter(a => !heliOnly || isHeli(a)).sort((x,y) => x._dist - y._dist);
+  const heliOnly = $('heliOnly').checked, ground = $('ground').checked;
+  const visible = a => (!heliOnly || isHeli(a)) && !/^C/.test(a.category||'') && (ground || a.alt_baro !== 'ground');
+  const list = [...aircraft.values()].filter(visible).sort((x,y) => x._dist - y._dist);
   // map
   for (const a of aircraft.values()){
-    const show = !heliOnly || isHeli(a);
+    const show = visible(a);
     let m = markers.get(a.hex);
     if (!show){ if (m) removeMarker(a.hex); continue; }
     const ll = [a.lat, a.lon];
@@ -389,6 +402,7 @@ function render(){
   $('count').textContent = list.length ? `${list.length} shown · ${list.filter(isHeli).length} helicopter${list.filter(isHeli).length===1?'':'s'}` : '';
   if (!me){ $('list').innerHTML = '<div class="empty">No location yet.</div>'; return; }
   if (!list.length){ $('list').innerHTML = `<div class="empty">Nothing ${heliOnly?'rotary ':''}broadcasting within ${$('radius').value} nm right now. Try a bigger radius.</div>`; return; }
+  queueLookups(list.filter(isHeli));
   $('list').innerHTML = list.map(a => {
     const role = roleOf(a, lookupCache.get(a.hex)?.aircraft);
     const sq = SQUAWKS[a.squawk];
@@ -408,6 +422,21 @@ function render(){
       <div class="num"><b>${fmtDist(a._dist)}</b><br>${compass(a._brg)} · ${fmtAlt(a.alt_baro)}</div>
     </div>`;
   }).join('');
+}
+const lookupQueue = [];
+let lookupBusy = false;
+function queueLookups(list){
+  for (const a of list) if (!lookupCache.has(a.hex) && !lookupQueue.includes(a.hex)) lookupQueue.push(a.hex);
+  pumpLookups();
+}
+async function pumpLookups(){
+  if (lookupBusy) return;
+  lookupBusy = true;
+  while (lookupQueue.length){
+    const a = aircraft.get(lookupQueue.shift());
+    if (a && !lookupCache.has(a.hex)) { await lookup(a); render(); }
+  }
+  lookupBusy = false;
 }
 function getVar(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
 $('list').addEventListener('click', e => { const r = e.target.closest('.row'); if (r) select(r.dataset.hex); });
@@ -506,6 +535,9 @@ function draw(a, info){
 }
 
 // ---------- Boot ----------
+$('relay').value = relayUrl();
+if (!relayUrl()) $('relayBox').open = true;
+$('saveRelay').onclick = () => { store.set('ow-relay', $('relay').value.trim()); setStatus('Relay saved.'); if (me) refresh(); };
 const savedU = store.get('ow-units'); if (savedU) $('units').value = savedU;
 if (store.get('ow-heli')==='1') $('heliOnly').checked = true;
 try { const s = JSON.parse(store.get('ow-loc')||'null'); if (s && isFinite(s.lat)) setLocation(s.lat, s.lon, 'saved'); } catch(e){}
