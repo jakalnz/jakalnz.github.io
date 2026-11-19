@@ -83,6 +83,7 @@ aside{border-left:1px solid var(--line);background:var(--panel);display:flex;fle
 .leaflet-tooltip.plane-tt{background:var(--panel);color:var(--fg);border:1px solid var(--line);box-shadow:none;font:600 11px var(--f-mono);padding:1px 5px}
 .leaflet-tooltip.plane-tt:before{display:none}
 .leaflet-container{font-family:var(--f-body)}
+@media (prefers-color-scheme:dark){.leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.9) contrast(.9)}}
 .note{font-size:11.5px;color:var(--muted);padding:8px 16px;border-top:1px solid var(--line)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
@@ -156,11 +157,9 @@ let timer = null, loading = false;
 const lookupCache = new Map();
 
 // ---------- Map ----------
-const dark = matchMedia('(prefers-color-scheme: dark)').matches;
 const map = L.map('map', {zoomControl:true, doubleClickZoom:false}).setView([39.5,-98.35], 4);
-L.tileLayer(`https://{s}.basemaps.cartocdn.com/${dark?'dark_all':'rastertiles/voyager'}/{z}/{x}/{y}{r}.png`, {
-  maxZoom:19, subdomains:'abcd',
-  attribution:'&copy; OpenStreetMap contributors &copy; CARTO'
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom:19, attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
 }).addTo(map);
 let meMarker = null, ring = null;
 const markers = new Map(), trails = new Map();
@@ -406,11 +405,14 @@ function render(){
   $('count').textContent = list.length ? `${list.length} shown · ${list.filter(isHeli).length} helicopter${list.filter(isHeli).length===1?'':'s'}` : '';
   if (!me){ $('list').innerHTML = '<div class="empty">No location yet.</div>'; return; }
   if (!list.length){ $('list').innerHTML = `<div class="empty">Nothing ${heliOnly?'rotary ':''}broadcasting within ${$('radius').value} nm right now. Try a bigger radius.</div>`; return; }
-  queueLookups(list.filter(isHeli));
+  queueLookups([...list.filter(isHeli), ...list.filter(a => !isHeli(a))]);
   $('list').innerHTML = list.map(a => {
     const role = roleOf(a, lookupCache.get(a.hex)?.aircraft);
     const sq = SQUAWKS[a.squawk];
-    const act = shortActivity(a);
+    const act = shortActivity(a) === 'Transit' ? '' : shortActivity(a);
+    const ac = lookupCache.get(a.hex)?.aircraft;
+    const typeName = a.desc || (ac && [ac.manufacturer, ac.type].filter(Boolean).join(' ')) || a.t;
+    const owner = a.ownOp || ac?.registered_owner;
     return `<div class="row${a.hex===selected?' sel':''}" data-hex="${esc(a.hex)}" tabindex="0" role="button">
       <div class="ico">${iconSvg(a,24)}</div>
       <div style="min-width:0">
@@ -421,7 +423,7 @@ function render(){
           ${act?`<span class="pill act">${act}</span>`:''}
           ${sq?`<span class="pill alert">${esc(sq)}</span>`:''}
         </div>
-        <div class="t2">${esc([a.desc || a.t, a.ownOp].filter(Boolean).join(' · ') || 'Unknown type')}</div>
+        <div class="t2">${esc([typeName, owner].filter(Boolean).join(' · ') || 'Unknown type')}</div>
       </div>
       <div class="num"><b>${fmtDist(a._dist)}</b><br>${compass(a._brg)} · ${fmtAlt(a.alt_baro)}</div>
     </div>`;
