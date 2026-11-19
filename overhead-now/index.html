@@ -4,6 +4,17 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Overhead Now</title>
+<meta name="description" content="See which aircraft and helicopters are flying near you, and what they're doing.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="icon" href="icons/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#131c24" media="(prefers-color-scheme: dark)">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Overhead">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&family=Space+Grotesk:wght@600;700&display=swap">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
@@ -90,7 +101,8 @@ aside{border-left:1px solid var(--line);background:var(--panel);display:flex;fle
 </head>
 <body>
 <header>
-  <h1>Overhead<span>Now</span></h1>
+  <h1><img src="icons/icon.svg" alt="" width="28" height="28" style="vertical-align:-6px;border-radius:7px;margin-right:8px">Overhead<span>Now</span></h1>
+  <button id="install" type="button" hidden>Install app</button>
   <div class="controls">
     <button id="locate" class="primary" type="button">Use my location</button>
     <input id="lat" placeholder="Latitude" inputmode="decimal" aria-label="Latitude">
@@ -103,8 +115,8 @@ aside{border-left:1px solid var(--line);background:var(--panel);display:flex;fle
       <option value="50">50 nm radius</option>
     </select>
     <select id="units" aria-label="Units">
+      <option value="km" selected>Km / m</option>
       <option value="mi">Miles / ft</option>
-      <option value="km">Km / m</option>
     </select>
   </div>
   <div id="status">Tap "Use my location", or type coordinates. Tip: double-click the map to move your spot.</div>
@@ -128,7 +140,7 @@ aside{border-left:1px solid var(--line);background:var(--panel);display:flex;fle
         <button id="saveRelay" type="button">Save</button>
       </div>
     </details>
-    <div class="note">Live ADS-B data from adsb.fi / adsb.lol (community feeders); aircraft details and routes from adsbdb.com. Some aircraft, like police or military, may hide their identity or not broadcast at all.</div>
+    <div class="note">Live ADS-B data from adsb.lol (community feeders); aircraft details and routes from adsbdb.com. Some aircraft, like police or military, may hide their identity or not broadcast at all.</div>
   </aside>
 </main>
 
@@ -539,6 +551,18 @@ function draw(a, info){
     </div>`;
   $('closeDetail').onclick = () => { selected = null; d.hidden = true; render(); };
 }
+
+// ---------- Install as an app ----------
+let installPrompt = null;
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installPrompt = e; $('install').hidden = false; });
+window.addEventListener('appinstalled', () => { $('install').hidden = true; installPrompt = null; });
+$('install').onclick = async () => {
+  if (installPrompt) { installPrompt.prompt(); await installPrompt.userChoice.catch(()=>{}); installPrompt = null; $('install').hidden = true; }
+};
+const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+if (isIOS && !standalone) { $('install').hidden = false; $('install').onclick = () => setStatus('To install on iPhone/iPad: tap the Share button, then "Add to Home Screen".'); }
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 
 // ---------- Boot ----------
 $('relay').value = relayUrl();
