@@ -67,6 +67,25 @@ main{flex:1;display:grid;grid-template-columns:minmax(0,1fr) 400px;min-height:0}
 #replay .info{font:12px var(--f-mono);color:var(--muted);display:flex;justify-content:space-between;gap:4px 10px;flex-wrap:wrap;font-variant-numeric:tabular-nums}
 #replay .legend{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted)}
 #replay .legend i{flex:1;height:5px;border-radius:3px;background:linear-gradient(90deg,hsl(25 90% 50%),hsl(120 60% 42%),hsl(210 90% 50%))}
+#sky{display:none}
+@media (max-width:820px){
+  #sky{display:block;position:relative;height:84px;background:var(--panel);border-bottom:1px solid var(--line);overflow:hidden;user-select:none;-webkit-user-select:none}
+}
+#skyTape{position:absolute;inset:0}
+#sky .hz{position:absolute;left:0;right:0;bottom:20px;height:1px;background:var(--line)}
+#sky .tk{position:absolute;bottom:20px;width:1px;height:6px;background:var(--line)}
+#sky .tk.major{height:12px;background:var(--muted)}
+#sky .lb{position:absolute;bottom:3px;transform:translateX(-50%);font:600 11px/1 var(--f-mono);color:var(--muted)}
+#sky .lb.n{color:var(--alert)}
+#sky .ac{position:absolute;transform:translate(-50%,50%);width:30px;height:30px;min-height:0;display:grid;place-items:center;border:0;border-radius:50%;background:none;padding:0;touch-action:manipulation}
+#sky .ac svg{width:20px;height:20px;filter:drop-shadow(0 1px 1px rgba(0,0,0,.35))}
+#sky .ac.sel{background:color-mix(in srgb, var(--accent) 22%, transparent);box-shadow:0 0 0 2px var(--accent)}
+#sky .tag{position:absolute;transform:translate(-50%,0);font:600 10px/1 var(--f-mono);color:var(--fg);background:var(--panel);border:1px solid var(--line);border-radius:3px;padding:2px 4px;white-space:nowrap;pointer-events:none}
+#sky .edge{position:absolute;bottom:34px;font:600 11px/1 var(--f-mono);color:var(--accent);background:var(--chip);border:1px solid var(--line);border-radius:999px;padding:4px 7px;pointer-events:none}
+#skyCenter{position:absolute;left:50%;top:0;bottom:20px;width:2px;margin-left:-1px;background:var(--accent);opacity:.45;pointer-events:none}
+#skyCenter::after{content:"";position:absolute;bottom:-1px;left:-5px;border:6px solid transparent;border-bottom-color:var(--accent)}
+#skyInfo{position:absolute;left:max(8px,env(safe-area-inset-left,0px));top:5px;font:600 11px/1 var(--f-mono);color:var(--muted);display:flex;gap:6px;align-items:center;pointer-events:none}
+#skyCompass{pointer-events:auto;min-height:0;padding:3px 8px;font:600 11px/1.2 var(--f-body);background:var(--accent);color:#fff;border:0;border-radius:999px}
 .replay-pick{margin:8px 0}
 .replay-pick b{display:block;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
 .replay-pick .grp{display:flex;gap:6px;flex-wrap:wrap}
@@ -162,6 +181,11 @@ aside{border-left:1px solid var(--line);background:var(--panel);display:flex;fle
   </div>
   <div id="status">Tap the location button to see what's flying near you.</div>
 </header>
+<div id="sky" aria-label="Where to look: aircraft by compass direction and height above the horizon">
+  <div id="skyTape"></div>
+  <div id="skyCenter"></div>
+  <div id="skyInfo"><span id="skyHeading">North up</span><button id="skyCompass" type="button" hidden>Use compass</button></div>
+</div>
 <main>
   <div id="mapwrap">
     <div id="map"></div>
@@ -510,6 +534,7 @@ function render(){
   const heliOnly = $('heliOnly').checked, ground = $('ground').checked;
   const visible = a => (!heliOnly || isHeli(a)) && !/^C/.test(a.category||'') && (ground || a.alt_baro !== 'ground');
   const list = [...aircraft.values()].filter(visible).sort((x,y) => x._dist - y._dist);
+  lastVisible = me ? list : []; scheduleSky();
   // map
   for (const a of aircraft.values()){
     const show = visible(a);
@@ -688,6 +713,77 @@ function draw(a, info){
     </div>`;
   $('closeDetail').onclick = () => { selected = null; d.hidden = true; render(); };
   d.querySelectorAll('[data-mins]').forEach(b => b.onclick = () => startReplay(a.hex, +b.dataset.mins));
+}
+
+// ---------- Where-to-look strip (phones) ----------
+// A horizon strip: left/right is compass direction, up is angle above the horizon.
+// With a working compass it turns with the phone and the centre line is where you're facing;
+// without one it shows all 360 degrees with north in the middle.
+let lastVisible = [], heading = null, compassOn = false, skyPending = false;
+function scheduleSky(){ if (!skyPending){ skyPending = true; requestAnimationFrame(drawSky); } }
+function drawSky(){
+  skyPending = false;
+  const el = $('sky');
+  if (!el || !el.offsetWidth) return;
+  const W = el.clientWidth, span = compassOn ? 140 : 360, center = compassOn ? heading : 0;
+  const rel = b => ((b - center + 540) % 360) - 180;
+  const x = b => rel(b) / span * W + W/2;
+  let html = '<div class="hz"></div>', left = 0, right = 0;
+  for (let d = 0; d < 360; d += 15){
+    if (Math.abs(rel(d)) > span/2 + 8) continue;
+    const px = x(d).toFixed(1), major = d % 45 === 0;
+    html += `<div class="tk${major ? ' major' : ''}" style="left:${px}px"></div>`;
+    if (major) html += `<div class="lb${d === 0 ? ' n' : ''}" style="left:${px}px">${compass(d)}</div>`;
+  }
+  // Draw the selected aircraft last so it sits on top.
+  const items = [...lastVisible].sort((a, b) => (a.hex === selected) - (b.hex === selected));
+  for (const a of items){
+    if (a.alt_baro === 'ground') continue;
+    const r = rel(a._brg);
+    if (Math.abs(r) > span/2){ if (r < 0) left++; else right++; continue; }
+    const e = Math.max(0, elevation(a) ?? 0);
+    const y = 22 + Math.sqrt(Math.min(e, 60) / 60) * 40; // stretched so low aircraft (most of them) spread out
+    const px = Math.min(Math.max(x(a._brg), 14), W - 14).toFixed(1);
+    const name = cs(a) || a.r || a.hex.toUpperCase();
+    html += `<button class="ac${a.hex === selected ? ' sel' : ''}" type="button" data-hex="${esc(a.hex)}" style="left:${px}px;bottom:${y.toFixed(1)}px" aria-label="${esc(name)}, ${compass(a._brg)}, ${Math.round(e)} degrees up">${iconSvg(a, 20)}</button>`;
+    if (a.hex === selected) html += `<div class="tag" style="left:${px}px;bottom:${(y + 15).toFixed(1)}px">${esc(name)}</div>`;
+  }
+  if (left) html += `<div class="edge" style="left:6px">‹ ${left}</div>`;
+  if (right) html += `<div class="edge" style="right:6px">${right} ›</div>`;
+  $('skyTape').innerHTML = html;
+  $('skyHeading').textContent = compassOn ? `Facing ${compass(heading)} ${Math.round(heading)}°` : 'North up';
+}
+// Select on pointerdown: the strip redraws often while the compass moves.
+$('skyTape').addEventListener('pointerdown', e => { const b = e.target.closest('.ac'); if (b){ e.preventDefault(); select(b.dataset.hex); } });
+$('skyTape').addEventListener('keydown', e => { const b = e.target.closest('.ac'); if (b && (e.key === 'Enter' || e.key === ' ')){ e.preventDefault(); select(b.dataset.hex); } });
+addEventListener('resize', scheduleSky);
+
+function onOrient(e){
+  let h = null;
+  if (typeof e.webkitCompassHeading === 'number' && e.webkitCompassHeading >= 0) h = e.webkitCompassHeading; // iPhone
+  else if (e.absolute && typeof e.alpha === 'number') h = 360 - e.alpha;                                      // Android
+  if (h == null || isNaN(h)) return;
+  h = (h + (screen.orientation?.angle ?? window.orientation ?? 0) + 360) % 360;
+  if (heading == null) heading = h;
+  else { const d = ((h - heading + 540) % 360) - 180; heading = (heading + d * 0.3 + 360) % 360; } // smooth out jitter
+  if (!compassOn){ compassOn = true; $('skyCompass').hidden = true; }
+  scheduleSky();
+}
+const needsCompassTap = typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function';
+$('skyCompass').onclick = async () => {
+  try {
+    if (await DeviceOrientationEvent.requestPermission() === 'granted'){ addEventListener('deviceorientation', onOrient); $('skyCompass').hidden = true; }
+    else setStatus('Compass access was not allowed, so the strip stays north-up.');
+  } catch(e){ setStatus('Compass not available, so the strip stays north-up.'); }
+};
+if ('ondeviceorientationabsolute' in window){
+  // Android: the compass works without asking. If nothing arrives and the browser can ask, offer the button.
+  addEventListener('deviceorientationabsolute', onOrient);
+  if (needsCompassTap) setTimeout(() => { if (!compassOn) $('skyCompass').hidden = false; }, 3000);
+} else if (needsCompassTap){
+  $('skyCompass').hidden = false; // iPhone/iPad: needs a tap to allow it
+} else {
+  addEventListener('deviceorientation', onOrient);
 }
 
 // ---------- Track replay ----------
