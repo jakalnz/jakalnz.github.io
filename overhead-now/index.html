@@ -141,7 +141,7 @@ const store = {get(k){try{return localStorage.getItem(k)}catch(e){return null}},
 // ---------- Data sources ----------
 // The public feeds block direct browser calls (no CORS), so the page goes through a small relay
 // (relay-worker.js in this folder, deployed as a Cloudflare Worker).
-const DEFAULT_RELAY = '';
+const DEFAULT_RELAY = 'https://overhead-relay.mpsanders.workers.dev';
 const relayUrl = () => (store.get('ow-relay') || DEFAULT_RELAY).trim().replace(/\/+$/,'');
 const feeds = () => relayUrl() ? [{name:'relay', url:(la,lo,nm)=>`${relayUrl()}/point/${la}/${lo}/${nm}`}] : [];
 const ADSBDB = 'https://api.adsbdb.com/v0';
@@ -348,7 +348,11 @@ async function refresh(){
     catch(e){ lastErr = e; }
   }
   loading = false;
-  if (!data){ setStatus('Couldn\'t reach the live flight feeds ('+(lastErr?.message||'network error')+'). Retrying in a few seconds.', true); return; }
+  if (!data){
+    if (aircraft.size) setStatus('The flight feed is busy right now, so positions may be a little old. Trying again shortly.');
+    else setStatus('Couldn\'t reach the live flight feeds ('+(lastErr?.message||'network error')+'). Trying again shortly.', true);
+    return;
+  }
   const now = Date.now();
   const seen = new Set();
   for (const a of (data.ac || data.aircraft || [])){
