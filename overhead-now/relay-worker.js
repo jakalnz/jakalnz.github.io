@@ -2,11 +2,9 @@
 // The free flight feeds don't allow direct calls from other websites (no CORS),
 // so this worker fetches them and hands the result to the page.
 //
-// Track replay: every sample of the sky the worker takes is handed to a small
-// store (a Durable Object) that keeps two hours of positions. Samples come from
-// the app's own requests and from a once-a-minute schedule (two samples each run)
-// around the area the app was last used in. The schedule stops sampling after a
-// day without anyone using the app.
+// Track replay: every answer the worker fetches for the app is also handed to a
+// small store (a Durable Object) that keeps two hours of positions. It makes no
+// extra requests of its own, so replay covers the times the app was open.
 //
 // Routes: /point/{lat}/{lon}/{radius_nm}   /history/{hex}?mins=60   /recorder-status
 // It is not an open proxy.
@@ -15,8 +13,6 @@ const ALLOWED_ORIGINS = ['https://jakalnz.github.io'];
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 const KEEP_MS = 2 * 3600_000;          // how much history to keep
-const IDLE_STOP_MS = 24 * 3600_000;    // stop background sampling after a day without app use
-const RECORD_RADIUS_NM = 30;           // background sampling radius around the app's area
 
 // adsb.fi, airplanes.live and OpenSky all refuse or time out from Cloudflare, so only adsb.lol is used.
 async function fetchAircraft(la, lo, nm, errors = []) {
@@ -77,8 +73,6 @@ export default {
     if (!m) return new Response('Overhead Now relay. Use /point/{lat}/{lon}/{radius_nm} or /history/{hex}', { status: 404, headers: cors });
 
     const la = (+m[1]).toFixed(3), lo = (+m[2]).toFixed(3), nm = Math.min(Math.max(+m[3], 1), 100);
-    // Remember where the app is being used (rounded to about 1 km) for background sampling.
-    if (rec && okOrigin) ctx.waitUntil(rec.fetch(`https://rec/touch?la=${(+la).toFixed(2)}&lo=${(+lo).toFixed(2)}`).catch(() => {}));
 
     const key = `${la},${lo},${nm}`;
     const errors = [];
@@ -92,23 +86,6 @@ export default {
     const prev = lastGood.get(key);
     if (prev && Date.now() - prev.now < 60000) return json({ ...prev, stale: true, source: prev.source + ' (cached)' });
     return json({ error: errors.join('; ') }, 502);
-  },
-
-  // Runs once a minute: takes two samples, 30 s apart, around the app's last area.
-  async scheduled(event, env, ctx) {
-    if (!env.REC) return;
-    const rec = env.REC.get(env.REC.idFromName('recorder-2'));
-    const st = await (await rec.fetch('https://rec/status')).json();
-    const idle = !st.area || Date.now() - (st.lastUse || 0) > IDLE_STOP_MS;
-    await rec.fetch('https://rec/cron', { method: 'POST', body: JSON.stringify({ idle }) });
-    if (idle) return;
-    for (let i = 0; i < 2; i++) {
-      if (i) await sleep(30_000);
-      const errors = [];
-      const got = await fetchAircraft(st.area.la.toFixed(2), st.area.lo.toFixed(2), RECORD_RADIUS_NM, errors);
-      if (got) await store(rec, got.ac);
-      else await rec.fetch('https://rec/error', { method: 'POST', body: JSON.stringify(errors) }).catch(() => {});
-    }
   },
 };
 
