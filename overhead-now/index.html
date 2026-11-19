@@ -331,7 +331,8 @@ $('locate').onclick = () => {
 $('go').onclick = () => setLocation($('lat').value, $('lon').value, 'manual');
 [$('lat'),$('lon')].forEach(i => i.addEventListener('keydown', e => { if (e.key==='Enter') $('go').click(); }));
 $('radius').onchange = () => { drawRing(); if (me){ map.setView([me.lat,me.lon], zoomFor(+$('radius').value)); refresh(); } };
-$('units').onchange = () => { store.set('ow-units', units()); render(); if (selected) showDetail(selected, false); };
+function labelRadius(){ for (const o of $('radius').options) o.textContent = fmtDist(+o.value).replace(/\.\d/,'') + ' radius'; }
+$('units').onchange = () => { store.set('ow-units', units()); labelRadius(); render(); if (selected) showDetail(selected, false); };
 $('heliOnly').onchange = () => { store.set('ow-heli', $('heliOnly').checked?'1':'0'); render(); };
 $('auto').onchange = schedule;
 $('ground').onchange = render;
@@ -379,7 +380,7 @@ async function refresh(){
   }
   for (const hex of [...aircraft.keys()]) if (!seen.has(hex)) { aircraft.delete(hex); removeMarker(hex); }
   for (const hex of [...history.keys()]) if (!aircraft.has(hex) && now - (history.get(hex).at(-1)?.t||0) > 15*60e3) history.delete(hex);
-  setStatus(`${aircraft.size} aircraft within ${nm} nm · updated ${new Date().toLocaleTimeString()} via ${used}` + ($('auto').checked?' · refreshing every 15 s':''));
+  setStatus(`${aircraft.size} aircraft within ${fmtDist(nm).replace(/\.\d/,'')} · updated ${new Date().toLocaleTimeString()} via ${used}` + ($('auto').checked?' · refreshing every 15 s':''));
   render();
   if (selected && aircraft.has(selected)) showDetail(selected, false);
 }
@@ -416,7 +417,7 @@ function render(){
   // list
   $('count').textContent = list.length ? `${list.length} shown · ${list.filter(isHeli).length} helicopter${list.filter(isHeli).length===1?'':'s'}` : '';
   if (!me){ $('list').innerHTML = '<div class="empty">No location yet.</div>'; return; }
-  if (!list.length){ $('list').innerHTML = `<div class="empty">Nothing ${heliOnly?'rotary ':''}broadcasting within ${$('radius').value} nm right now. Try a bigger radius.</div>`; return; }
+  if (!list.length){ $('list').innerHTML = `<div class="empty">Nothing ${heliOnly?'rotary ':''}broadcasting within ${fmtDist(+$('radius').value).replace(/\.\d/,'')} right now. Try a bigger radius.</div>`; return; }
   queueLookups([...list.filter(isHeli), ...list.filter(a => !isHeli(a))]);
   $('list').innerHTML = list.map(a => {
     const role = roleOf(a, lookupCache.get(a.hex)?.aircraft);
@@ -569,6 +570,7 @@ $('relay').value = relayUrl();
 if (!relayUrl()) $('relayBox').open = true;
 $('saveRelay').onclick = () => { store.set('ow-relay', $('relay').value.trim()); setStatus('Relay saved.'); if (me) refresh(); };
 const savedU = store.get('ow-units'); if (savedU) $('units').value = savedU;
+labelRadius();
 if (store.get('ow-heli')==='1') $('heliOnly').checked = true;
 try { const s = JSON.parse(store.get('ow-loc')||'null'); if (s && isFinite(s.lat)) setLocation(s.lat, s.lon, 'saved'); } catch(e){}
 })();
