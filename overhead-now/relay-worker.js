@@ -1,37 +1,57 @@
 // Overhead Now data relay — a Cloudflare Worker.
 // The free flight feeds don't allow direct calls from other websites (no CORS),
-// so this tiny worker fetches them and hands the result to the page.
-// Only answers /point/{lat}/{lon}/{radius_nm}; it is not an open proxy.
+// so this worker fetches them and hands the result to the page.
+//
+// Track replay: every sample of the sky the worker takes is handed to a small
+// store (a Durable Object) that keeps two hours of positions. Samples come from
+// the app's own requests and from a once-a-minute schedule (two samples each run)
+// around the area the app was last used in. The schedule stops sampling after a
+// day without anyone using the app.
+//
+// Routes: /point/{lat}/{lon}/{radius_nm}   /history/{hex}?mins=60   /recorder-status
+// It is not an open proxy.
 
 const ALLOWED_ORIGINS = ['https://jakalnz.github.io'];
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-// OpenSky returns arrays; convert to the readsb-style objects the page expects.
-function fromOpenSky(d) {
-  return (d.states || []).filter(s => s[5] != null && s[6] != null).map(s => ({
-    hex: s[0], flight: s[1] || '', lon: s[5], lat: s[6],
-    alt_baro: s[8] ? 'ground' : (s[7] != null ? s[7] / 0.3048 : undefined),
-    alt_geom: s[13] != null ? s[13] / 0.3048 : undefined,
-    gs: s[9] != null ? s[9] * 1.94384 : undefined, track: s[10] ?? undefined,
-    baro_rate: s[11] != null ? s[11] * 196.85 : undefined, squawk: s[14] || undefined,
-    category: s[17] === 8 ? 'A7' : undefined, seen: d.time && s[4] ? d.time - s[4] : undefined,
-  }));
+const KEEP_MS = 2 * 3600_000;          // how much history to keep
+const IDLE_STOP_MS = 24 * 3600_000;    // stop background sampling after a day without app use
+const RECORD_RADIUS_NM = 30;           // background sampling radius around the app's area
+
+// adsb.fi, airplanes.live and OpenSky all refuse or time out from Cloudflare, so only adsb.lol is used.
+async function fetchAircraft(la, lo, nm, errors = []) {
+  for (let i = 0; i < 3; i++) {
+    try {
+      const r = await fetch(`https://api.adsb.lol/v2/point/${la}/${lo}/${nm}`,
+        { headers: { 'User-Agent': 'overhead-now-relay' }, signal: AbortSignal.timeout(8000) });
+      if (r.status === 429 && i < 2) { await sleep(400 * (i + 1)); continue; }
+      if (!r.ok) { errors.push(`adsb.lol HTTP ${r.status}`); return null; }
+      const d = await r.json();
+      return { source: 'adsb.lol', ac: d.ac || d.aircraft || [] };
+    } catch (e) { errors.push(`adsb.lol: ${e.message}`); return null; }
+  }
+  return null;
 }
 
-const UPSTREAMS = [
-  { name: 'adsb.lol', tries: 3, url: (la, lo, nm) => `https://api.adsb.lol/v2/point/${la}/${lo}/${nm}` },
-  { name: 'adsb.fi', tries: 1, url: (la, lo, nm) => `https://opendata.adsb.fi/api/v2/lat/${la}/lon/${lo}/dist/${nm}` },
-  { name: 'OpenSky', tries: 1, url: (la, lo, nm) => {
-      const dLat = nm / 60, dLon = nm / (60 * Math.max(Math.cos(la * Math.PI / 180), 0.1));
-      return `https://opensky-network.org/api/states/all?extended=1&lamin=${(+la - dLat).toFixed(3)}&lamax=${(+la + dLat).toFixed(3)}&lomin=${(+lo - dLon).toFixed(3)}&lomax=${(+lo + dLon).toFixed(3)}`;
-    }, convert: fromOpenSky },
-];
+// Compact snapshot: hex -> [lat, lon, alt ft | 'ground' | null, track, ground speed kt]
+function compact(ac) {
+  const snap = {};
+  for (const a of ac) {
+    if (typeof a.lat !== 'number' || typeof a.lon !== 'number' || !a.hex) continue;
+    const alt = a.alt_baro === 'ground' ? 'ground' : (typeof a.alt_baro === 'number' ? Math.round(a.alt_baro) : null);
+    snap[a.hex.toLowerCase()] = [+a.lat.toFixed(5), +a.lon.toFixed(5), alt,
+      typeof a.track === 'number' ? Math.round(a.track) : null, typeof a.gs === 'number' ? Math.round(a.gs) : null];
+  }
+  return snap;
+}
 
-// Last good answer per area, reused briefly if every feed is busy.
+const store = (rec, ac) => rec.fetch('https://rec/store', { method: 'POST', body: JSON.stringify(compact(ac)) }).catch(() => {});
+
+// Last good answer per area, reused briefly if the feed is busy.
 const lastGood = new Map();
 
 export default {
-  async fetch(request) {
+  async fetch(request, env, ctx) {
     const origin = request.headers.get('Origin') || '';
     const okOrigin = ALLOWED_ORIGINS.includes(origin) || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
     const cors = {
@@ -39,32 +59,109 @@ export default {
       'Access-Control-Allow-Methods': 'GET, OPTIONS',
       'Vary': 'Origin',
     };
+    const json = (obj, status = 200) => new Response(JSON.stringify(obj), { status, headers: { ...cors, 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
     if (request.method === 'OPTIONS') return new Response(null, { headers: cors });
 
-    const m = new URL(request.url).pathname.match(/^\/point\/(-?\d{1,2}(?:\.\d+)?)\/(-?\d{1,3}(?:\.\d+)?)\/(\d{1,3})$/);
-    if (!m) return new Response('Overhead Now relay. Use /point/{lat}/{lon}/{radius_nm}', { status: 404, headers: cors });
+    const url = new URL(request.url);
+    const rec = env.REC ? env.REC.get(env.REC.idFromName('recorder-2')) : null;
+
+    const h = url.pathname.match(/^\/history\/([0-9a-f]{6})$/i);
+    if (h) {
+      if (!rec) return json({ path: [] });
+      const mins = Math.min(Math.max(parseInt(url.searchParams.get('mins') || '60', 10) || 60, 1), 120);
+      return json(await (await rec.fetch(`https://rec/history/${h[1].toLowerCase()}?mins=${mins}`)).json());
+    }
+    if (url.pathname === '/recorder-status' && rec) return json(await (await rec.fetch('https://rec/status')).json());
+
+    const m = url.pathname.match(/^\/point\/(-?\d{1,2}(?:\.\d+)?)\/(-?\d{1,3}(?:\.\d+)?)\/(\d{1,3})$/);
+    if (!m) return new Response('Overhead Now relay. Use /point/{lat}/{lon}/{radius_nm} or /history/{hex}', { status: 404, headers: cors });
 
     const la = (+m[1]).toFixed(3), lo = (+m[2]).toFixed(3), nm = Math.min(Math.max(+m[3], 1), 100);
-    const key = `${la},${lo},${nm}`;
-    const json = (obj, status = 200) => new Response(JSON.stringify(obj), { status, headers: { ...cors, 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
-    const errors = [];
+    // Remember where the app is being used (rounded to about 1 km) for background sampling.
+    if (rec && okOrigin) ctx.waitUntil(rec.fetch(`https://rec/touch?la=${(+la).toFixed(2)}&lo=${(+lo).toFixed(2)}`).catch(() => {}));
 
-    for (const up of UPSTREAMS) {
-      for (let i = 0; i < up.tries; i++) {
-        try {
-          const r = await fetch(up.url(la, lo, nm), { headers: { 'User-Agent': 'overhead-now-relay' } });
-          if (r.status === 429 && i < up.tries - 1) { await sleep(400 * (i + 1)); continue; }
-          if (!r.ok) { errors.push(`${up.name} HTTP ${r.status}`); break; }
-          const d = await r.json();
-          const ac = up.convert ? up.convert(d) : (d.ac || d.aircraft || []);
-          const out = { source: up.name, now: Date.now(), ac };
-          lastGood.set(key, out);
-          return json(out);
-        } catch (e) { errors.push(`${up.name}: ${e.message}`); break; }
-      }
+    const key = `${la},${lo},${nm}`;
+    const errors = [];
+    const got = await fetchAircraft(la, lo, nm, errors);
+    if (got) {
+      const out = { source: got.source, now: Date.now(), ac: got.ac };
+      lastGood.set(key, out);
+      if (rec) ctx.waitUntil(store(rec, got.ac));
+      return json(out);
     }
     const prev = lastGood.get(key);
     if (prev && Date.now() - prev.now < 60000) return json({ ...prev, stale: true, source: prev.source + ' (cached)' });
     return json({ error: errors.join('; ') }, 502);
   },
+
+  // Runs once a minute: takes two samples, 30 s apart, around the app's last area.
+  async scheduled(event, env, ctx) {
+    if (!env.REC) return;
+    const rec = env.REC.get(env.REC.idFromName('recorder-2'));
+    const st = await (await rec.fetch('https://rec/status')).json();
+    if (!st.area || Date.now() - (st.lastUse || 0) > IDLE_STOP_MS) return;
+    for (let i = 0; i < 2; i++) {
+      if (i) await sleep(30_000);
+      const errors = [];
+      const got = await fetchAircraft(st.area.la.toFixed(2), st.area.lo.toFixed(2), RECORD_RADIUS_NM, errors);
+      if (got) await store(rec, got.ac);
+      else await rec.fetch('https://rec/error', { method: 'POST', body: JSON.stringify(errors) }).catch(() => {});
+    }
+  },
 };
+
+// Stores snapshots and answers history questions. Makes no outside requests.
+export class Recorder {
+  constructor(state) {
+    this.state = state;
+    this.sql = state.storage.sql;
+    this.sql.exec('CREATE TABLE IF NOT EXISTS snaps (t INTEGER PRIMARY KEY, data TEXT NOT NULL)');
+  }
+
+  async fetch(request) {
+    const url = new URL(request.url);
+    const now = Date.now();
+    switch (url.pathname) {
+      case '/touch': {
+        const la = +url.searchParams.get('la'), lo = +url.searchParams.get('lo');
+        if (Number.isFinite(la) && Number.isFinite(lo)) await this.state.storage.put('area', { la, lo });
+        await this.state.storage.put('lastUse', now);
+        await this.state.storage.deleteAlarm(); // earlier versions sampled from here; no longer needed
+        return new Response('ok');
+      }
+      case '/store': {
+        const snap = await request.json();
+        // Merge into a sample taken in the same 10 s window, so app and schedule samples don't double up.
+        const slot = Math.round(now / 10_000) * 10_000;
+        const prev = [...this.sql.exec('SELECT data FROM snaps WHERE t = ?', slot)][0];
+        const data = prev ? { ...JSON.parse(prev.data), ...snap } : snap;
+        this.sql.exec('INSERT OR REPLACE INTO snaps (t, data) VALUES (?, ?)', slot, JSON.stringify(data));
+        this.sql.exec('DELETE FROM snaps WHERE t < ?', now - KEEP_MS);
+        await this.state.storage.put('lastStore', now);
+        return new Response('ok');
+      }
+      case '/error':
+        await this.state.storage.put('lastError', { t: now, errors: await request.json() });
+        return new Response('ok');
+      case '/status': {
+        const n = [...this.sql.exec('SELECT COUNT(*) AS n, MIN(t) AS a, MAX(t) AS b FROM snaps')][0];
+        return Response.json({ snapshots: n.n, oldest: n.a, newest: n.b, area: await this.state.storage.get('area'),
+          lastUse: await this.state.storage.get('lastUse'), lastError: await this.state.storage.get('lastError'), now });
+      }
+    }
+    const h = url.pathname.match(/^\/history\/([0-9a-f]{6})$/);
+    if (h) {
+      const since = now - (+url.searchParams.get('mins') || 60) * 60_000;
+      const path = [];
+      for (const row of this.sql.exec('SELECT t, data FROM snaps WHERE t >= ? ORDER BY t', since)) {
+        const p = JSON.parse(row.data)[h[1]];
+        if (p) path.push([row.t, ...p]); // [time ms, lat, lon, alt ft | 'ground' | null, track, ground speed kt]
+      }
+      const first = [...this.sql.exec('SELECT MIN(t) AS a FROM snaps')][0];
+      return Response.json({ source: 'recorder', path, recordedSince: first.a });
+    }
+    return new Response('not found', { status: 404 });
+  }
+
+  async alarm() {} // earlier versions sampled on an alarm; does nothing now and does not reschedule
+}
