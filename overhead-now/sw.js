@@ -1,6 +1,6 @@
 // Overhead Now service worker: keeps the app shell available so it opens quickly
 // and can be installed. Live flight data is never cached.
-const CACHE = 'overhead-now-v1';
+const CACHE = 'overhead-now-v2';
 const SHELL = ['./', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png',
   'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css'];
