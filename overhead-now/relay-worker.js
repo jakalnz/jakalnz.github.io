@@ -99,7 +99,9 @@ export default {
     if (!env.REC) return;
     const rec = env.REC.get(env.REC.idFromName('recorder-2'));
     const st = await (await rec.fetch('https://rec/status')).json();
-    if (!st.area || Date.now() - (st.lastUse || 0) > IDLE_STOP_MS) return;
+    const idle = !st.area || Date.now() - (st.lastUse || 0) > IDLE_STOP_MS;
+    await rec.fetch('https://rec/cron', { method: 'POST', body: JSON.stringify({ idle }) });
+    if (idle) return;
     for (let i = 0; i < 2; i++) {
       if (i) await sleep(30_000);
       const errors = [];
@@ -140,13 +142,17 @@ export class Recorder {
         await this.state.storage.put('lastStore', now);
         return new Response('ok');
       }
+      case '/cron':
+        await this.state.storage.put('lastCron', { t: now, ...(await request.json()) });
+        return new Response('ok');
       case '/error':
         await this.state.storage.put('lastError', { t: now, errors: await request.json() });
         return new Response('ok');
       case '/status': {
         const n = [...this.sql.exec('SELECT COUNT(*) AS n, MIN(t) AS a, MAX(t) AS b FROM snaps')][0];
         return Response.json({ snapshots: n.n, oldest: n.a, newest: n.b, area: await this.state.storage.get('area'),
-          lastUse: await this.state.storage.get('lastUse'), lastError: await this.state.storage.get('lastError'), now });
+          lastUse: await this.state.storage.get('lastUse'), lastError: await this.state.storage.get('lastError'),
+          lastCron: await this.state.storage.get('lastCron'), now });
       }
     }
     const h = url.pathname.match(/^\/history\/([0-9a-f]{6})$/);
