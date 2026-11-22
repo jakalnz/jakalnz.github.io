@@ -6,7 +6,11 @@
 // small store (a Durable Object) that keeps two hours of positions. It makes no
 // extra requests of its own, so replay covers the times the app was open.
 //
-// Routes: /point/{lat}/{lon}/{radius_nm}   /history/{hex}?mins=60   /recorder-status
+// Ships: AIS positions come from aisstream.io over a WebSocket held by a second Durable Object (Ships).
+// It needs a free API key stored as the secret AISSTREAM_KEY and a binding named SHIPS (see the bottom of this file).
+// Without them the /ships route just answers "not configured" and aircraft keep working.
+//
+// Routes: /point/{lat}/{lon}/{radius_nm}   /history/{hex}?mins=60   /ships/{lat}/{lon}/{radius_km}   /recorder-status
 // It is not an open proxy.
 
 const ALLOWED_ORIGINS = ['https://jakalnz.github.io'];
@@ -68,6 +72,16 @@ export default {
       return json(await (await rec.fetch(`https://rec/history/${h[1].toLowerCase()}?mins=${mins}`)).json());
     }
     if (url.pathname === '/recorder-status' && rec) return json(await (await rec.fetch('https://rec/status')).json());
+
+    const sh = url.pathname.match(/^\/ships\/(-?\d{1,2}(?:\.\d+)?)\/(-?\d{1,3}(?:\.\d+)?)\/(\d{1,3})$/);
+    if (sh) {
+      if (!env.SHIPS || !env.AISSTREAM_KEY) return json({ configured: false, ships: [] });
+      const la = (+sh[1]).toFixed(3), lo = (+sh[2]).toFixed(3), km = Math.min(Math.max(+sh[3], 1), 60);
+      try {
+        const stub = env.SHIPS.get(env.SHIPS.idFromName('ships-1'));
+        return json(await (await stub.fetch(`https://ships/query?la=${la}&lo=${lo}&km=${km}`)).json());
+      } catch (e) { return json({ configured: true, ships: [], error: String(e.message || e) }, 502); }
+    }
 
     const m = url.pathname.match(/^\/point\/(-?\d{1,2}(?:\.\d+)?)\/(-?\d{1,3}(?:\.\d+)?)\/(\d{1,3})$/);
     if (!m) return new Response('Overhead Now relay. Use /point/{lat}/{lon}/{radius_nm} or /history/{hex}', { status: 404, headers: cors });
@@ -147,4 +161,143 @@ export class Recorder {
   }
 
   async alarm() {} // earlier versions sampled on an alarm; does nothing now and does not reschedule
+}
+
+// ---------------------------------------------------------------------------
+// Ships. One Durable Object keeps a WebSocket open to aisstream.io for the area the app is looking at,
+// holds the latest position and details of each vessel in memory, and answers /query.
+// The socket is closed after a few minutes with no requests, so it only runs while the app is in use.
+//
+// Setup (Cloudflare dashboard or wrangler):
+//   1. Free API key from https://aisstream.io  ->  add as a secret named AISSTREAM_KEY
+//   2. Durable Object binding named SHIPS pointing at class Ships
+//   3. Migration:  [[migrations]] tag = "v2"  new_classes = ["Ships"]
+// ---------------------------------------------------------------------------
+const SHIP_STALE_MS = 30 * 60_000;   // forget a vessel not heard from for this long
+const SHIP_IDLE_MS = 3 * 60_000;     // close the feed when nobody has asked for this long
+const kmBetween = (la1, lo1, la2, lo2) => {
+  const r = Math.PI / 180, dLa = (la2 - la1) * r, dLo = (lo2 - lo1) * r;
+  const h = Math.sin(dLa / 2) ** 2 + Math.cos(la1 * r) * Math.cos(la2 * r) * Math.sin(dLo / 2) ** 2;
+  return 12742 * Math.asin(Math.sqrt(h));
+};
+
+export class Ships {
+  constructor(state, env) {
+    this.state = state; this.env = env;
+    this.ships = new Map();    // mmsi -> latest position report
+    this.statics = new Map();  // mmsi -> name, type, destination, size...
+    this.ws = null; this.box = null; this.connecting = null;
+    this.lastUse = 0; this.openedAt = 0; this.lastMsg = 0; this.error = null;
+  }
+
+  async fetch(request) {
+    const u = new URL(request.url);
+    const la = +u.searchParams.get('la'), lo = +u.searchParams.get('lo'), km = +u.searchParams.get('km');
+    if (![la, lo, km].every(Number.isFinite)) return new Response('bad request', { status: 400 });
+    this.lastUse = Date.now();
+    if (!(await this.state.storage.getAlarm())) await this.state.storage.setAlarm(this.lastUse + SHIP_IDLE_MS);
+    try { await this.ensure(la, lo, km); } catch (e) { this.error = String(e.message || e); }
+
+    const now = Date.now(), out = [];
+    for (const [mmsi, s] of this.ships) {
+      if (now - s.t > SHIP_STALE_MS) { this.ships.delete(mmsi); continue; }
+      const d = kmBetween(la, lo, s.lat, s.lon);
+      if (d > km) continue;
+      const st = this.statics.get(mmsi) || {};
+      out.push({ mmsi, name: s.name || st.name || null, lat: s.lat, lon: s.lon, sog: s.sog, cog: s.cog, hdg: s.hdg, nav: s.nav,
+        type: st.type ?? null, dest: st.dest || null, imo: st.imo || null, call: st.call || null,
+        len: st.len || null, beam: st.beam || null, draught: st.draught || null, age: Math.round((now - s.t) / 1000), d });
+    }
+    out.sort((a, b) => a.d - b.d);
+    return Response.json({ configured: true, now, ships: out.slice(0, 300).map(({ d, ...rest }) => rest),
+      listening: !!this.ws, listeningFor: this.ws ? Math.round((now - this.openedAt) / 1000) : 0,
+      error: this.ws ? null : this.error });
+  }
+
+  // Make sure the feed is open and its box covers the circle the app asked about.
+  async ensure(la, lo, km) {
+    const b = this.box;
+    const dLa = km / 111, dLo = km / (111 * Math.max(Math.cos(la * Math.PI / 180), 0.05));
+    const covered = this.ws && b && la - dLa >= b.s && la + dLa <= b.n && lo - dLo >= b.w && lo + dLo <= b.e;
+    if (covered) return;
+    if (!this.connecting) this.connecting = this.connect(la, lo, km).finally(() => { this.connecting = null; });
+    await this.connecting;
+  }
+
+  async connect(la, lo, km) {
+    try { this.ws?.close(1000, 'new area'); } catch (e) {}
+    this.ws = null;
+    const r = Math.min(Math.max(km * 1.5, 30), 100); // listen a little wider than asked so small moves don't reconnect
+    const dLa = r / 111, dLo = r / (111 * Math.max(Math.cos(la * Math.PI / 180), 0.05));
+    const box = { s: Math.max(la - dLa, -90), n: Math.min(la + dLa, 90), w: Math.max(lo - dLo, -180), e: Math.min(lo + dLo, 180) };
+    const resp = await fetch('https://stream.aisstream.io/v0/stream', { headers: { Upgrade: 'websocket' } });
+    const ws = resp.webSocket;
+    if (!ws) throw new Error(`aisstream.io refused the connection (HTTP ${resp.status})`);
+    ws.accept();
+    // aisstream wants the subscription within 3 seconds of connecting.
+    ws.send(JSON.stringify({
+      APIKey: this.env.AISSTREAM_KEY,
+      BoundingBoxes: [[[box.s, box.w], [box.n, box.e]]],
+      FilterMessageTypes: ['PositionReport', 'StandardClassBPositionReport', 'ShipStaticData', 'StaticDataReport'],
+    }));
+    ws.addEventListener('message', ev => this.onMessage(ev.data));
+    const gone = msg => { if (this.ws === ws) { this.ws = null; this.box = null; if (msg) this.error = msg; } };
+    ws.addEventListener('close', ev => gone(ev.code === 1000 ? null : `aisstream.io closed the feed (${ev.code} ${ev.reason || ''})`.trim()));
+    ws.addEventListener('error', () => gone('aisstream.io feed error'));
+    this.ws = ws; this.box = box; this.openedAt = Date.now(); this.error = null;
+  }
+
+  onMessage(raw) {
+    let m;
+    try { m = JSON.parse(typeof raw === 'string' ? raw : new TextDecoder().decode(raw)); } catch (e) { return; }
+    if (m.error || m.Error) { this.error = String(m.error || m.Error); return; } // e.g. invalid API key
+    this.lastMsg = Date.now();
+    const md = m.MetaData || {}, mmsi = String(md.MMSI || '');
+    const body = m.Message && m.Message[m.MessageType];
+    if (!mmsi || !body) return;
+    const clean = v => (typeof v === 'string' ? v.replace(/[@\s]+$/, '').trim() : '');
+    const merge = (patch) => {
+      const prev = this.statics.get(mmsi) || {};
+      for (const k of Object.keys(patch)) if (patch[k] !== undefined && patch[k] !== '' && patch[k] !== null) prev[k] = patch[k];
+      prev.t = Date.now();
+      this.statics.set(mmsi, prev);
+    };
+    const size = d => d && (d.A || d.B) ? { len: (d.A || 0) + (d.B || 0), beam: (d.C || 0) + (d.D || 0) } : {};
+    switch (m.MessageType) {
+      case 'PositionReport':
+      case 'StandardClassBPositionReport': {
+        const lat = body.Latitude ?? md.latitude, lon = body.Longitude ?? md.longitude;
+        if (typeof lat !== 'number' || typeof lon !== 'number' || Math.abs(lat) > 90 || Math.abs(lon) > 180) return; // 91 / 181 mean "not available"
+        const prev = this.ships.get(mmsi) || {};
+        this.ships.set(mmsi, { ...prev, lat, lon, t: Date.now(),
+          name: clean(md.ShipName) || prev.name || null,
+          sog: typeof body.Sog === 'number' && body.Sog < 102.3 ? body.Sog : null,
+          cog: typeof body.Cog === 'number' && body.Cog < 360 ? body.Cog : null,
+          hdg: typeof body.TrueHeading === 'number' && body.TrueHeading < 360 ? body.TrueHeading : null,
+          nav: typeof body.NavigationalStatus === 'number' ? body.NavigationalStatus : null });
+        break;
+      }
+      case 'ShipStaticData':
+        merge({ name: clean(body.Name), type: body.Type, dest: clean(body.Destination), imo: body.ImoNumber || undefined,
+          call: clean(body.CallSign), draught: body.MaximumStaticDraught || undefined, ...size(body.Dimension) });
+        break;
+      case 'StaticDataReport': // class B boats send this in two parts
+        if (body.ReportA) merge({ name: clean(body.ReportA.Name) });
+        if (body.ReportB) merge({ type: body.ReportB.ShipType, call: clean(body.ReportB.CallSign), ...size(body.ReportB.Dimension) });
+        break;
+    }
+  }
+
+  async alarm() {
+    const now = Date.now();
+    if (now - this.lastUse >= SHIP_IDLE_MS) {
+      try { this.ws?.close(1000, 'idle'); } catch (e) {}
+      this.ws = null; this.box = null;
+      this.ships.clear(); this.statics.clear();
+      return; // no reschedule; the next request sets a new alarm
+    }
+    for (const [k, s] of this.ships) if (now - s.t > SHIP_STALE_MS) this.ships.delete(k);
+    for (const [k, s] of this.statics) if (now - s.t > 3 * 3600_000) this.statics.delete(k);
+    await this.state.storage.setAlarm(this.lastUse + SHIP_IDLE_MS);
+  }
 }
