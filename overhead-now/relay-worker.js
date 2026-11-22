@@ -166,7 +166,7 @@ export class Recorder {
 // ---------------------------------------------------------------------------
 // Ships. One Durable Object keeps a WebSocket open to aisstream.io for the area the app is looking at,
 // holds the latest position and details of each vessel in memory, and answers /query.
-// The socket is closed after a few minutes with no requests, so it only runs while the app is in use.
+// The socket is closed after 30 minutes with no requests, so it only runs while the app is in use.
 //
 // Setup (Cloudflare dashboard or wrangler):
 //   1. Free API key from https://aisstream.io  ->  add as a secret named AISSTREAM_KEY
@@ -175,7 +175,7 @@ export class Recorder {
 // ---------------------------------------------------------------------------
 const SHIP_STALE_MS = 30 * 60_000;   // forget a vessel not heard from for this long
 const STATIC_KEEP_MS = 14 * 86400_000; // remember a vessel's destination, size and type for two weeks
-const SHIP_IDLE_MS = 3 * 60_000;     // close the feed when nobody has asked for this long
+const SHIP_IDLE_MS = 30 * 60_000;    // keep listening this long after the last request, so ships are already there when the app reopens
 const kmBetween = (la1, lo1, la2, lo2) => {
   const r = Math.PI / 180, dLa = (la2 - la1) * r, dLo = (lo2 - lo1) * r;
   const h = Math.sin(dLa / 2) ** 2 + Math.cos(la1 * r) * Math.cos(la2 * r) * Math.sin(dLo / 2) ** 2;
