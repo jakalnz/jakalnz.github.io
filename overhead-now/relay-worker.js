@@ -78,7 +78,7 @@ export default {
       if (!env.SHIPS || !env.AISSTREAM_KEY) return json({ configured: false, ships: [] });
       const la = (+sh[1]).toFixed(3), lo = (+sh[2]).toFixed(3), km = Math.min(Math.max(+sh[3], 1), 60);
       try {
-        const stub = env.SHIPS.get(env.SHIPS.idFromName('ships-6'));
+        const stub = env.SHIPS.get(env.SHIPS.idFromName('ships-7'));
         return json(await (await stub.fetch(`https://ships/query?la=${la}&lo=${lo}&km=${km}`)).json());
       } catch (e) { return json({ configured: true, ships: [], error: String(e.message || e) }, 502); }
     }
@@ -174,6 +174,7 @@ export class Recorder {
 //   3. Migration:  [[migrations]] tag = "v2"  new_classes = ["Ships"]
 // ---------------------------------------------------------------------------
 const SHIP_STALE_MS = 30 * 60_000;   // forget a vessel not heard from for this long
+const STATIC_KEEP_MS = 14 * 86400_000; // remember a vessel's destination, size and type for two weeks
 const SHIP_IDLE_MS = 3 * 60_000;     // close the feed when nobody has asked for this long
 const kmBetween = (la1, lo1, la2, lo2) => {
   const r = Math.PI / 180, dLa = (la2 - la1) * r, dLo = (lo2 - lo1) * r;
@@ -181,14 +182,16 @@ const kmBetween = (la1, lo1, la2, lo2) => {
   return 12742 * Math.asin(Math.sqrt(h));
 };
 
-const m_isErr = r => typeof r === 'string' && /error/i.test(r.slice(0, 200));
 export class Ships {
   constructor(state, env) {
     this.state = state; this.env = env;
     this.ships = new Map();    // mmsi -> latest position report
-    this.statics = new Map();  // mmsi -> name, type, destination, size...
+    this.statics = new Map();  // mmsi -> name, type, destination, size... (kept in storage: ships only send these every few minutes)
+    this.sql = state.storage.sql;
+    this.sql.exec('CREATE TABLE IF NOT EXISTS statics (mmsi TEXT PRIMARY KEY, t INTEGER NOT NULL, data TEXT NOT NULL)');
+    for (const r of this.sql.exec('SELECT mmsi, data FROM statics')) this.statics.set(r.mmsi, JSON.parse(r.data));
     this.ws = null; this.box = null; this.connecting = null;
-    this.lastUse = 0; this.openedAt = 0; this.lastMsg = 0; this.error = null;
+    this.lastUse = 0; this.openedAt = 0; this.error = null;
   }
 
   async fetch(request) {
@@ -211,9 +214,8 @@ export class Ships {
     }
     out.sort((a, b) => a.d - b.d);
     return Response.json({ configured: true, now, ships: out.slice(0, 300).map(({ d, ...rest }) => rest),
-      messages: this.msgCount || 0, raw: this.rawCount || 0, lastRaw: this.lastRaw, tracked: this.ships.size, box: this.box,
       listening: !!this.ws, listeningFor: this.ws ? Math.round((now - this.openedAt) / 1000) : 0,
-      error: this.error, lastIssue: this.lastIssue || null });
+      error: this.error });
   }
 
   // Make sure the feed is open and its box covers the circle the app asked about.
@@ -243,7 +245,7 @@ export class Ships {
       FilterMessageTypes: ['PositionReport', 'StandardClassBPositionReport', 'ShipStaticData', 'StaticDataReport'],
     }));
     ws.addEventListener('message', ev => this.onMessage(ev.data));
-    const gone = msg => { if (this.ws === ws) { this.ws = null; this.box = null; if (msg) this.error = this.lastIssue = msg; } };
+    const gone = msg => { if (this.ws === ws) { this.ws = null; this.box = null; if (msg) this.error = msg; } };
     ws.addEventListener('close', ev => gone(ev.code === 1000 ? null : `aisstream.io closed the feed (${ev.code} ${ev.reason || ''})`.trim()));
     ws.addEventListener('error', () => gone('aisstream.io feed error'));
     this.ws = ws; this.box = box; this.openedAt = Date.now(); this.error = null;
@@ -251,11 +253,9 @@ export class Ships {
 
   async onMessage(raw) {
     if (typeof raw !== 'string') raw = typeof raw.text === 'function' ? await raw.text() : new TextDecoder().decode(raw); // aisstream sends binary frames
-    this.rawCount = (this.rawCount || 0) + 1; if (this.rawCount <= 3 || m_isErr(raw)) this.lastRaw = raw.slice(0, 300);
     let m;
     try { m = JSON.parse(raw); } catch (e) { return; }
-    if (m.error || m.Error) { this.error = this.lastIssue = String(m.error || m.Error); return; } // e.g. invalid API key
-    this.lastMsg = Date.now(); this.msgCount = (this.msgCount || 0) + 1;
+    if (m.error || m.Error) { this.error = String(m.error || m.Error); return; } // e.g. invalid API key
     const md = m.MetaData || {}, mmsi = String(md.MMSI || '');
     const body = m.Message && m.Message[m.MessageType];
     if (!mmsi || !body) return;
@@ -265,6 +265,7 @@ export class Ships {
       for (const k of Object.keys(patch)) if (patch[k] !== undefined && patch[k] !== '' && patch[k] !== null) prev[k] = patch[k];
       prev.t = Date.now();
       this.statics.set(mmsi, prev);
+      this.sql.exec('INSERT OR REPLACE INTO statics (mmsi, t, data) VALUES (?, ?, ?)', mmsi, prev.t, JSON.stringify(prev));
     };
     const size = d => d && (d.A || d.B) ? { len: (d.A || 0) + (d.B || 0), beam: (d.C || 0) + (d.D || 0) } : {};
     switch (m.MessageType) {
@@ -292,16 +293,21 @@ export class Ships {
     }
   }
 
+  prune(now) {
+    for (const [k, v] of this.statics) if (now - v.t > STATIC_KEEP_MS) this.statics.delete(k);
+    this.sql.exec('DELETE FROM statics WHERE t < ?', now - STATIC_KEEP_MS);
+  }
+
   async alarm() {
     const now = Date.now();
     if (now - this.lastUse >= SHIP_IDLE_MS) {
       try { this.ws?.close(1000, 'idle'); } catch (e) {}
       this.ws = null; this.box = null;
-      this.ships.clear(); this.statics.clear();
+      this.ships.clear(); this.prune(now); // keep the stored vessel details for next time
       return; // no reschedule; the next request sets a new alarm
     }
     for (const [k, s] of this.ships) if (now - s.t > SHIP_STALE_MS) this.ships.delete(k);
-    for (const [k, s] of this.statics) if (now - s.t > 3 * 3600_000) this.statics.delete(k);
+    this.prune(now);
     await this.state.storage.setAlarm(this.lastUse + SHIP_IDLE_MS);
   }
 }
