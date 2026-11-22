@@ -1,0 +1,21 @@
+# Deploy the relay with:  npx wrangler deploy   (run from this folder)
+# The AISSTREAM_KEY secret is already set on the Worker; set it again with: npx wrangler secret put AISSTREAM_KEY
+name = "overhead-relay"
+main = "relay-worker.js"
+compatibility_date = "2026-10-01"
+
+[[durable_objects.bindings]]
+name = "REC"
+class_name = "Recorder"
+
+[[durable_objects.bindings]]
+name = "SHIPS"
+class_name = "Ships"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Recorder"]
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["Ships"]

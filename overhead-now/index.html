@@ -22,7 +22,7 @@
 /* Layout: map fills the left/top, a scrolling contact list + detail panel on the right/bottom */
 :root{
   --bg:#eef1f4; --panel:#ffffff; --fg:#14202b; --muted:#5d6b78; --line:#d6dde4;
-  --accent:#0b6e99; --heli:#c2410c; --you:#2563eb; --mil:#4d7c0f; --alert:#b91c1c;
+  --accent:#0b6e99; --heli:#c2410c; --ship:#0f766e; --you:#2563eb; --mil:#4d7c0f; --alert:#b91c1c;
   --chip:#e6edf2;
   --f-display:"Space Grotesk",system-ui,sans-serif;
   --f-body:"IBM Plex Sans",system-ui,sans-serif;
@@ -31,7 +31,7 @@
 }
 @media (prefers-color-scheme:dark){:root{
   --bg:#0c1218; --panel:#131c24; --fg:#e4ebf1; --muted:#8c9aa7; --line:#25323e;
-  --accent:#38bdf8; --heli:#fb923c; --you:#60a5fa; --mil:#a3e635; --alert:#f87171;
+  --accent:#38bdf8; --heli:#fb923c; --ship:#2dd4bf; --you:#60a5fa; --mil:#a3e635; --alert:#f87171;
   --chip:#1c2833; color-scheme:dark;}}
 *{box-sizing:border-box}
 html,body{height:100%;margin:0}
@@ -146,6 +146,7 @@ aside{border-left:1px solid var(--line);background:var(--panel);display:flex;fle
 .pill.heli{color:var(--heli);border-color:currentColor}
 .pill.role{color:var(--accent);border-color:currentColor}
 .pill.mil{color:var(--mil);border-color:currentColor}
+.pill.ship{color:var(--ship);border-color:currentColor}
 .pill.alert{color:#fff;background:var(--alert);border-color:var(--alert)}
 .pill.act{color:var(--fg)}
 #detail{border-top:2px solid var(--line);max-height:58%;overflow:auto;padding:14px 16px}
@@ -207,13 +208,14 @@ aside{border-left:1px solid var(--line);background:var(--panel);display:flex;fle
   </div>
   <aside>
     <div class="tabs">
+      <label class="chip"><input type="checkbox" id="ships" checked> Ships</label>
       <label class="chip"><input type="checkbox" id="heliOnly"> Helicopters only</label>
       <label class="chip"><input type="checkbox" id="ground"> On ground</label>
       <span class="count" id="count"></span>
     </div>
     <div id="list"><div class="empty">Tap the location button at the top to start.</div></div>
     <section id="detail" hidden></section>
-    <div class="note">Live ADS-B data from adsb.lol (community feeders); aircraft details and routes from adsbdb.com. Some aircraft, like police or military, may hide their identity or not broadcast at all.</div>
+    <div class="note">Live ADS-B data from adsb.lol (community feeders); aircraft details and routes from adsbdb.com. Ships from AIS via aisstream.io. Some aircraft, like police or military, may hide their identity or not broadcast at all.</div>
   </aside>
 </main>
 
@@ -257,7 +259,7 @@ aside{border-left:1px solid var(--line);background:var(--panel);display:flex;fle
     </div>
     <div>
       <h3>About the data</h3>
-      <p>Live positions come from adsb.lol, a network of volunteer receivers. Aircraft details and routes come from adsbdb.com. Some aircraft, like police or military, may hide their identity or not broadcast at all. Height above the horizon assumes you're near sea level. Track replay uses positions your relay has recorded, so it covers the times the app has been open, up to the last 2 hours.</p>
+      <p>Live positions come from adsb.lol, a network of volunteer receivers. Aircraft details and routes come from adsbdb.com. Some aircraft, like police or military, may hide their identity or not broadcast at all. Ships come from aisstream.io, which collects AIS broadcasts from vessels near land receivers, so small boats without a transponder and ships far offshore won't show. Height above the horizon assumes you're near sea level. Track replay uses positions your relay has recorded, so it covers the times the app has been open, up to the last 2 hours.</p>
     </div>
   </div>
 </div>
@@ -281,6 +283,8 @@ const REFRESH_MS = 15000;
 // ---------- State ----------
 let me = null;               // {lat, lon}
 let aircraft = new Map();    // hex -> latest record
+let ships = new Map();       // 'ship:'+mmsi -> latest AIS record
+let shipNote = '';
 let history = new Map();     // hex -> [{t,lat,lon,track,alt}]
 let selected = null;
 let timer = null, loading = false;
@@ -422,6 +426,44 @@ function divIcon(a){
     html:`<div style="transform:rotate(${isHeli(a)?0:rot}deg);width:30px;height:30px;display:grid;place-items:center">${iconSvg(a)}</div>`});
 }
 
+// ---------- Ships (AIS) ----------
+const shipKind = t => t==null ? 'Vessel' : t>=70&&t<=79 ? 'Cargo ship' : t>=80&&t<=89 ? 'Tanker' : t>=60&&t<=69 ? 'Passenger ship' : t>=40&&t<=49 ? 'High-speed craft' :
+  ({30:'Fishing vessel',31:'Tug / tow',32:'Tug / tow',33:'Dredger',34:'Diving vessel',35:'Military',36:'Sailing vessel',37:'Pleasure craft',50:'Pilot boat',51:'Search & rescue',52:'Tug',53:'Port tender',55:'Law enforcement',58:'Medical transport'}[t] || (t>=90 ? 'Other vessel' : 'Vessel'));
+const SHIP_BLURB = {
+  'Cargo ship':'Cargo ships follow set shipping lanes between ports, usually at a steady 10 to 20 knots.',
+  'Tanker':'Tankers carry oil, gas or chemicals between terminals and move slowly along set lanes.',
+  'Passenger ship':'Ferries repeat the same crossing on a timetable; cruise ships move between ports overnight.',
+  'High-speed craft':'High-speed craft are usually fast ferries running a regular route.',
+  'Fishing vessel':'Fishing boats wander, loop and stop as they set or haul gear, so their track is rarely a straight line.',
+  'Tug / tow':'Tugs shepherd large ships in and out of port or tow barges slowly along the coast.',
+  'Tug':'Tugs shepherd large ships in and out of port, often waiting near the harbour entrance.',
+  'Pilot boat':'Pilot boats ferry harbour pilots to arriving ships, then return to station.',
+  'Sailing vessel':'Sailing boats follow the wind, so expect zig-zags and slow speeds.',
+  'Pleasure craft':'Leisure boats come and go with the weather, mostly close to the coast.',
+  'Search & rescue':'Rescue vessels respond to incidents and may run search patterns.',
+  'Military':'Naval and military vessels may broadcast only partial information.',
+  'Law enforcement':'Patrol vessels watch harbours, borders and fisheries.',
+  'Dredger':'Dredgers work slowly back and forth over a channel or harbour bed.',
+};
+const NAV_STATUS = ['Under way using engine','At anchor','Not under command','Restricted manoeuvrability','Constrained by draught','Moored','Aground','Engaged in fishing','Under way sailing'];
+const shipName = s => s.name || ('MMSI ' + s.mmsi);
+function shipActivity(s){
+  if (s.nav===1) return 'Anchored';
+  if (s.nav===5) return 'Moored';
+  if (s.nav===6) return 'Aground';
+  if (typeof s.sog==='number' && s.sog < 0.5) return 'Stationary';
+  return '';
+}
+function shipIconSvg(s, size=26){
+  return `<svg viewBox="0 0 32 32" width="${size}" height="${size}"><path fill="var(--ship)" stroke="var(--panel)" stroke-width="1"
+    d="M16 2c3.2 4 5.2 8.6 5.2 13.4V27c0 1.1-.9 2-2 2h-6.4c-1.1 0-2-.9-2-2V15.4C10.8 10.6 12.8 6 16 2z"/><rect x="13" y="16" width="6" height="6" rx="1" fill="var(--panel)" opacity=".85"/></svg>`;
+}
+function shipDivIcon(s){
+  const rot = typeof s.hdg==='number' ? s.hdg : (typeof s.cog==='number' && s.sog>0.5 ? s.cog : 0);
+  return L.divIcon({className:'plane-icon', iconSize:[28,28], iconAnchor:[14,14],
+    html:`<div style="transform:rotate(${rot}deg);width:28px;height:28px;display:grid;place-items:center">${shipIconSvg(s,26)}</div>`});
+}
+
 // ---------- Location ----------
 function setStatus(msg, err=false){ const s=$('status'); s.textContent=msg; s.classList.toggle('err', err); }
 function setLocation(lat, lon, src, keepTracks=false){
@@ -435,7 +477,7 @@ function setLocation(lat, lon, src, keepTracks=false){
     meMarker = L.circleMarker(ll, {radius:7, color:'#fff', weight:2, fillColor:getComputedStyle(document.documentElement).getPropertyValue('--you').trim()||'#2563eb', fillOpacity:1}).addTo(map).bindTooltip('You');
   } else meMarker.setLatLng(ll);
   drawRing();
-  if (!keepTracks){ fitRing(); aircraft.clear(); history.clear(); clearMarkers(); }
+  if (!keepTracks){ fitRing(); aircraft.clear(); ships.clear(); history.clear(); clearMarkers(); }
   refresh(); schedule();
 }
 function fitRing(){ if (ring) map.fitBounds(ring.getBounds(), {padding:[8,8]}); }
@@ -481,6 +523,11 @@ document.addEventListener('keydown', e => {
 });
 $('units').onchange = () => { store.set('ow-units', units()); labelRadius(); render(); if (selected) showDetail(selected, false); };
 $('heliOnly').onchange = () => { store.set('ow-heli', $('heliOnly').checked?'1':'0'); render(); };
+$('ships').onchange = () => {
+  store.set('ow-ships', $('ships').checked ? '1' : '0');
+  if (!$('ships').checked){ for (const k of [...ships.keys()]) { removeMarker(k); history.delete(k); } ships.clear(); shipNote = ''; if (selected?.startsWith('ship:')){ selected = null; $('detail').hidden = true; } render(); if (me) refresh(true); }
+  else if (me) refresh(true);
+};
 $('auto').onchange = schedule;
 $('ground').onchange = render;
 
@@ -496,16 +543,21 @@ async function fetchJson(url, ms=9000){
   try { const r = await fetch(url, {signal:ctl.signal}); if (!r.ok) throw new Error('HTTP '+r.status); return await r.json(); }
   finally { clearTimeout(t); }
 }
-async function refresh(){
-  if (!me || loading) return;
+async function refresh(force){
+  if (!me || (loading && !force)) return;
   loading = true;
   const km = radiusKm(), nm = Math.ceil(km/1.852);
   let data = null, used = null, lastErr = null;
   if (!feeds().length){ loading = false; setStatus('No data relay set yet. Open Settings and paste your relay link.', true); return; }
+  // Ships come from the same relay, fetched alongside the aircraft.
+  const shipReq = $('ships').checked
+    ? fetchJson(`${relayUrl()}/ships/${me.lat.toFixed(4)}/${me.lon.toFixed(4)}/${Math.min(Math.ceil(km),60)}`, 20000).catch(e => ({error:e.message, ships:null}))
+    : Promise.resolve(null);
   for (const f of feeds()){
     try { data = await fetchJson(f.url(me.lat.toFixed(4), me.lon.toFixed(4), nm), 20000); used = data.source || f.name; break; }
     catch(e){ lastErr = e; }
   }
+  const shipData = await shipReq;
   loading = false;
   if (!data){
     if (aircraft.size) setStatus('The flight feed is busy right now, so positions may be a little old. Trying again shortly.');
@@ -528,10 +580,32 @@ async function refresh(){
   }
   for (const hex of [...aircraft.keys()]) if (!seen.has(hex)) { aircraft.delete(hex); removeMarker(hex); }
   for (const hex of [...history.keys()]) if (!aircraft.has(hex) && now - (history.get(hex).at(-1)?.t||0) > 15*60e3) history.delete(hex);
-  setStatus(`${aircraft.size} aircraft within ${$('radius').selectedOptions[0].textContent} · updated ${new Date().toLocaleTimeString([], {hour:'numeric', minute:'2-digit'})}`);
+  applyShips(shipData, km, now);
+  setStatus(`${aircraft.size} aircraft${$('ships').checked && ships.size ? ` · ${ships.size} ship${ships.size===1?'':'s'}` : ''} within ${$('radius').selectedOptions[0].textContent} · updated ${new Date().toLocaleTimeString([], {hour:'numeric', minute:'2-digit'})}${shipNote ? ' · ' + shipNote : ''}`);
   $('status').title = 'Data via ' + used;
   render();
-  if (selected && aircraft.has(selected) && !rp) showDetail(selected, false);
+  if (selected && (aircraft.has(selected) || ships.has(selected)) && !rp) showDetail(selected, false);
+}
+function applyShips(d, km, now){
+  shipNote = '';
+  if (!d) return;
+  if (d.configured === false){ shipNote = 'ships off (relay has no AIS key)'; return; }
+  if (!d.ships){ shipNote = 'ship feed unreachable'; return; }
+  if (d.error && !d.ships.length) shipNote = 'ship feed: ' + d.error;
+  else if (!d.ships.length && d.listening && d.listeningFor < 60) shipNote = 'listening for ships…';
+  const seen = new Set();
+  for (const s of d.ships){
+    s.key = 'ship:' + s.mmsi;
+    s._dist = distNm(me, s); s._brg = bearing(me, s);
+    if (s._dist*1.852 > km) continue;
+    ships.set(s.key, s); seen.add(s.key);
+    const h = history.get(s.key) || [];
+    const last = h[h.length-1];
+    if (!last || last.lat!==s.lat || last.lon!==s.lon) h.push({t:now, lat:s.lat, lon:s.lon, track:s.cog, alt:null});
+    while (h.length && now - h[0].t > 15*60e3) h.shift();
+    history.set(s.key, h);
+  }
+  for (const k of [...ships.keys()]) if (!seen.has(k)){ ships.delete(k); removeMarker(k); history.delete(k); }
 }
 
 // ---------- Rendering ----------
@@ -542,6 +616,27 @@ function render(){
   const visible = a => (!heliOnly || isHeli(a)) && !/^C/.test(a.category||'') && (ground || a.alt_baro !== 'ground');
   const list = [...aircraft.values()].filter(visible).sort((x,y) => x._dist - y._dist);
   lastVisible = me ? list : []; scheduleSky();
+  const showShips = $('ships').checked && !heliOnly;
+  const shipList = showShips ? [...ships.values()].sort((x,y) => x._dist - y._dist) : [];
+  for (const s of ships.values()){
+    let m = markers.get(s.key);
+    if (!showShips){ if (m) removeMarker(s.key); continue; }
+    const ll = [s.lat, s.lon];
+    if (!m){
+      m = L.marker(ll, {icon:shipDivIcon(s), keyboard:false}).addTo(map);
+      m.on('click', () => select(s.key));
+      markers.set(s.key, m);
+    } else { m.setLatLng(ll); m.setIcon(shipDivIcon(s)); }
+    const label = shipName(s);
+    if (m.getTooltip()) m.setTooltipContent(label); else m.bindTooltip(label, {permanent:true, direction:'right', offset:[12,0], className:'plane-tt'});
+    const pts = (history.get(s.key)||[]).map(p => [p.lat,p.lon]);
+    if (pts.length > 1){
+      let t = trails.get(s.key);
+      if (!t){ t = L.polyline(pts, {color:getVar('--ship'), weight:2, opacity:.6}).addTo(map); trails.set(s.key, t); }
+      else t.setLatLngs(pts);
+      t.setStyle({weight: s.key===selected?4:2, opacity: s.key===selected?.95:.55});
+    }
+  }
   // map
   for (const a of aircraft.values()){
     const show = visible(a);
@@ -565,11 +660,23 @@ function render(){
     }
   }
   // list
-  $('count').textContent = list.length ? `${list.length} shown · ${list.filter(isHeli).length} helicopter${list.filter(isHeli).length===1?'':'s'}` : '';
+  $('count').textContent = (list.length || shipList.length) ? [`${list.length} shown`, `${list.filter(isHeli).length} helicopter${list.filter(isHeli).length===1?'':'s'}`, shipList.length ? `${shipList.length} ship${shipList.length===1?'':'s'}` : ''].filter(Boolean).join(' · ') : '';
   if (!me){ $('list').innerHTML = '<div class="empty">No location yet.</div>'; return; }
-  if (!list.length){ $('list').innerHTML = `<div class="empty">Nothing ${heliOnly?'rotary ':''}broadcasting within ${$('radius').selectedOptions[0].textContent} right now. Try a bigger radius.</div>`; return; }
+  if (!list.length && !shipList.length){ $('list').innerHTML = `<div class="empty">Nothing ${heliOnly?'rotary ':''}broadcasting within ${$('radius').selectedOptions[0].textContent} right now. Try a bigger radius.</div>`; return; }
   queueLookups([...list.filter(isHeli), ...list.filter(a => !isHeli(a))]);
-  $('list').innerHTML = list.map(a => {
+  const rows = [...list.map(a => ({a, d:a._dist})), ...shipList.map(s => ({s, d:s._dist}))].sort((x,y) => x.d - y.d);
+  $('list').innerHTML = rows.map(({a, s}) => {
+    if (s){
+      const kind = shipKind(s.type), act = shipActivity(s);
+      return `<div class="row${s.key===selected?' sel':''}" data-hex="${esc(s.key)}" tabindex="0" role="button">
+        <div class="ico">${shipIconSvg(s,24)}</div>
+        <div style="min-width:0">
+          <div class="t1">${esc(shipName(s))}<span class="pill ship">${esc(kind.split(' /')[0])}</span>${act?`<span class="pill act">${act}</span>`:''}</div>
+          <div class="t2">${esc([s.dest ? '→ ' + s.dest : '', s.len ? Math.round(s.len) + ' m' : ''].filter(Boolean).join(' · ') || 'No destination broadcast')}</div>
+        </div>
+        <div class="num"><b>${fmtDist(s._dist)}</b> ${arrow(s._brg)}<br>${fmtSpd(s.sog)}</div>
+      </div>`;
+    }
     const role = roleOf(a, lookupCache.get(a.hex)?.aircraft);
     const sq = SQUAWKS[a.squawk];
     const act = shortActivity(a) === 'Transit' ? '' : shortActivity(a);
@@ -616,7 +723,7 @@ function select(hex){
   selected = hex;
   render();
   showDetail(hex, true);
-  const a = aircraft.get(hex);
+  const a = aircraft.get(hex) || ships.get(hex);
   if (a) map.panTo([a.lat, a.lon]);
 }
 
@@ -637,8 +744,10 @@ async function lookup(a){
 function place(p){ if (!p) return ''; return [p.municipality || p.name, p.iata_code || p.icao_code, p.country_name].filter(Boolean).join(', '); }
 
 async function showDetail(hex, fresh){
-  const a = aircraft.get(hex);
   const d = $('detail');
+  const sh = ships.get(hex);
+  if (sh){ d.hidden = false; drawShip(sh); return; }
+  const a = aircraft.get(hex);
   if (!a){ d.hidden = true; return; }
   d.hidden = false;
   const info = lookupCache.get(hex);
@@ -661,6 +770,47 @@ function lookBlock(a){
       <circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4" fill="${isHeli(a)?'var(--heli)':'var(--accent)'}"/></svg>
     <div><strong>Look ${compass(a._brg)}, ${e}° above the horizon</strong><span style="color:var(--muted);font-size:12.5px">${fmtDist(a._dist)} away, bearing ${Math.round(a._brg)}°. ${hint}</span></div>
   </div>`;
+}
+function drawShip(s){
+  const d = $('detail');
+  const kind = shipKind(s.type), act = shipActivity(s);
+  const nav = typeof s.nav==='number' ? (NAV_STATUS[s.nav] || null) : null;
+  const doing = [];
+  if (SHIP_BLURB[kind]) doing.push(`<p style="margin:0 0 6px"><strong>${esc(kind)}.</strong> ${esc(SHIP_BLURB[kind])}</p>`);
+  if (s.dest) doing.push(`<p style="margin:0 0 6px"><strong>Heading to:</strong> ${esc(s.dest)}</p>`);
+  const bits = [];
+  if (act) bits.push(act === 'Stationary' ? 'Not moving' : act);
+  else if (typeof s.sog==='number') bits.push(`Under way at ${fmtSpd(s.sog)}${typeof s.cog==='number' ? `, course ${Math.round(s.cog)}° ${compass(s.cog)}` : ''}`);
+  if (nav && ![0,1,5,6].includes(s.nav)) bits.push(nav);
+  if (bits.length) doing.push(`<ul style="margin:0;padding-left:18px">${[...new Set(bits)].map(b=>`<li>${esc(b)}</li>`).join('')}</ul>`);
+  if (!doing.length) doing.push('<p style="margin:0">This vessel has not broadcast much detail yet.</p>');
+  const size = s.len ? `${Math.round(s.len)} m long${s.beam ? ` × ${Math.round(s.beam)} m wide` : ''}` : '—';
+  const mmsi = encodeURIComponent(s.mmsi);
+  d.innerHTML = `
+    <button class="close" type="button" aria-label="Close details" id="closeDetail">×</button>
+    <h2>${esc(shipName(s))}</h2>
+    <div class="sub">${esc(kind)} · ship</div>
+    <div class="doing"><b>What it's doing</b>${doing.join('')}</div>
+    <dl class="kv">
+      <dt>MMSI</dt><dd>${esc(s.mmsi)}</dd>
+      ${s.imo?`<dt>IMO</dt><dd>${esc(s.imo)}</dd>`:''}
+      ${s.call?`<dt>Call sign</dt><dd>${esc(s.call)}</dd>`:''}
+      <dt>Size</dt><dd>${esc(size)}</dd>
+      ${s.draught?`<dt>Draught</dt><dd>${units()==='km' ? s.draught.toFixed(1)+' m' : (s.draught*3.281).toFixed(1)+' ft'}</dd>`:''}
+      <dt>Destination</dt><dd>${esc(s.dest||'—')}</dd>
+      <dt>Status</dt><dd>${esc(nav||'—')}</dd>
+      <dt>Distance</dt><dd>${fmtDist(s._dist)} ${compass(s._brg)} of you (${Math.round(s._brg)}°)</dd>
+      <dt>Speed</dt><dd>${fmtSpd(s.sog)}${typeof s.sog==='number'?` (${s.sog.toFixed(1)} kt)`:''}</dd>
+      <dt>Course</dt><dd>${typeof s.cog==='number'?`${Math.round(s.cog)}° ${compass(s.cog)}`:'—'}</dd>
+      <dt>Heading</dt><dd>${typeof s.hdg==='number'?`${Math.round(s.hdg)}° ${compass(s.hdg)}`:'—'}</dd>
+      <dt>Last heard</dt><dd>${typeof s.age==='number'?(s.age<90?`${s.age} s ago`:`${Math.round(s.age/60)} min ago`):'—'}</dd>
+    </dl>
+    <div class="links">
+      <a href="https://www.marinetraffic.com/en/ais/details/ships/mmsi:${mmsi}" target="_blank" rel="noopener">MarineTraffic</a>
+      <a href="https://www.vesselfinder.com/?mmsi=${mmsi}" target="_blank" rel="noopener">VesselFinder</a>
+      <a href="https://www.google.com/search?q=${encodeURIComponent((s.name||'')+' MMSI '+s.mmsi+' ship')}" target="_blank" rel="noopener">Search the web</a>
+    </div>`;
+  $('closeDetail').onclick = () => { selected = null; d.hidden = true; render(); };
 }
 function draw(a, info){
   const d = $('detail');
@@ -922,6 +1072,7 @@ const savedU = store.get('ow-units'); if (savedU) $('units').value = savedU;
 const savedR = store.get('ow-radius'); if (savedR && [...$('radius').options].some(o => o.value===savedR)) $('radius').value = savedR;
 labelRadius();
 if (store.get('ow-heli')==='1') $('heliOnly').checked = true;
+if (store.get('ow-ships')==='0') $('ships').checked = false;
 try { const s = JSON.parse(store.get('ow-loc')||'null'); if (s && isFinite(s.lat)) setLocation(s.lat, s.lon, 'saved'); } catch(e){}
 autoLocate();
 })();
