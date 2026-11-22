@@ -78,7 +78,7 @@ export default {
       if (!env.SHIPS || !env.AISSTREAM_KEY) return json({ configured: false, ships: [] });
       const la = (+sh[1]).toFixed(3), lo = (+sh[2]).toFixed(3), km = Math.min(Math.max(+sh[3], 1), 60);
       try {
-        const stub = env.SHIPS.get(env.SHIPS.idFromName('ships-1'));
+        const stub = env.SHIPS.get(env.SHIPS.idFromName('ships-6'));
         return json(await (await stub.fetch(`https://ships/query?la=${la}&lo=${lo}&km=${km}`)).json());
       } catch (e) { return json({ configured: true, ships: [], error: String(e.message || e) }, 502); }
     }
@@ -181,6 +181,7 @@ const kmBetween = (la1, lo1, la2, lo2) => {
   return 12742 * Math.asin(Math.sqrt(h));
 };
 
+const m_isErr = r => typeof r === 'string' && /error/i.test(r.slice(0, 200));
 export class Ships {
   constructor(state, env) {
     this.state = state; this.env = env;
@@ -210,8 +211,9 @@ export class Ships {
     }
     out.sort((a, b) => a.d - b.d);
     return Response.json({ configured: true, now, ships: out.slice(0, 300).map(({ d, ...rest }) => rest),
+      messages: this.msgCount || 0, raw: this.rawCount || 0, lastRaw: this.lastRaw, tracked: this.ships.size, box: this.box,
       listening: !!this.ws, listeningFor: this.ws ? Math.round((now - this.openedAt) / 1000) : 0,
-      error: this.ws ? null : this.error });
+      error: this.error, lastIssue: this.lastIssue || null });
   }
 
   // Make sure the feed is open and its box covers the circle the app asked about.
@@ -241,17 +243,19 @@ export class Ships {
       FilterMessageTypes: ['PositionReport', 'StandardClassBPositionReport', 'ShipStaticData', 'StaticDataReport'],
     }));
     ws.addEventListener('message', ev => this.onMessage(ev.data));
-    const gone = msg => { if (this.ws === ws) { this.ws = null; this.box = null; if (msg) this.error = msg; } };
+    const gone = msg => { if (this.ws === ws) { this.ws = null; this.box = null; if (msg) this.error = this.lastIssue = msg; } };
     ws.addEventListener('close', ev => gone(ev.code === 1000 ? null : `aisstream.io closed the feed (${ev.code} ${ev.reason || ''})`.trim()));
     ws.addEventListener('error', () => gone('aisstream.io feed error'));
     this.ws = ws; this.box = box; this.openedAt = Date.now(); this.error = null;
   }
 
-  onMessage(raw) {
+  async onMessage(raw) {
+    if (typeof raw !== 'string') raw = typeof raw.text === 'function' ? await raw.text() : new TextDecoder().decode(raw); // aisstream sends binary frames
+    this.rawCount = (this.rawCount || 0) + 1; if (this.rawCount <= 3 || m_isErr(raw)) this.lastRaw = raw.slice(0, 300);
     let m;
-    try { m = JSON.parse(typeof raw === 'string' ? raw : new TextDecoder().decode(raw)); } catch (e) { return; }
-    if (m.error || m.Error) { this.error = String(m.error || m.Error); return; } // e.g. invalid API key
-    this.lastMsg = Date.now();
+    try { m = JSON.parse(raw); } catch (e) { return; }
+    if (m.error || m.Error) { this.error = this.lastIssue = String(m.error || m.Error); return; } // e.g. invalid API key
+    this.lastMsg = Date.now(); this.msgCount = (this.msgCount || 0) + 1;
     const md = m.MetaData || {}, mmsi = String(md.MMSI || '');
     const body = m.Message && m.Message[m.MessageType];
     if (!mmsi || !body) return;
